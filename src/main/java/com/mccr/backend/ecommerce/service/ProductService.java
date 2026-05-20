@@ -5,7 +5,6 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.mccr.backend.ecommerce.dto.DraftProduct;
 import com.mccr.backend.ecommerce.model.Product;
 import com.mccr.backend.ecommerce.repository.ProductRepository;
 
@@ -15,16 +14,13 @@ public class ProductService {
     @Autowired
     private ProductRepository productRepository;
 
-    public String createProduct(DraftProduct newProduct) {
-        final Product product = new Product();
+    public String createProduct(Product product) {
 
-        product.setName(newProduct.getName());
-        product.setDescription(newProduct.getDescription());
-        product.setUrlImage(newProduct.getUrlImage());
-        product.setPrice(newProduct.getPrice());
-        product.setQuantity(newProduct.getQuantity());
+        final Product newProduct = productRepository.save(product);
 
-        productRepository.save(product);
+        if (newProduct.getId() == null) {
+            throw new RuntimeException("No se pudo crear el producto");
+        }
 
         return "Producto creado";
     }
@@ -38,7 +34,7 @@ public class ProductService {
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado con el id " + id));
     }
 
-    public Product updateProduct(Long id, DraftProduct updatedData) {
+    public Product updateProduct(Long id, Product updatedData) {
         final Product product = findByProductId(id);
 
         product.setName(updatedData.getName());
