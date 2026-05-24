@@ -1,9 +1,12 @@
 package com.mccr.backend.ecommerce.service;
 
+import java.time.Instant;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.mccr.backend.ecommerce.model.Product;
 import com.mccr.backend.ecommerce.repository.ProductRepository;
@@ -14,15 +17,16 @@ public class ProductService {
     @Autowired
     private ProductRepository productRepository;
 
-    public String createProduct(Product product) {
+    public Product createProduct(Product product) {
 
         final Product newProduct = productRepository.save(product);
 
         if (newProduct.getId() == null) {
-            throw new RuntimeException("No se pudo crear el producto");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Error: No se pudo crear el producto");
         }
 
-        return "Producto creado";
+        return newProduct;
     }
 
     public List<Product> getAllProducts() {
@@ -31,7 +35,8 @@ public class ProductService {
 
     public Product findByProductId(Long id) {
         return productRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Producto no encontrado con el id " + id));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Error: Producto no encontrado"));
     }
 
     public Product updateProduct(Long id, Product updatedData) {
@@ -42,6 +47,7 @@ public class ProductService {
         product.setUrlImage(updatedData.getUrlImage());
         product.setPrice(updatedData.getPrice());
         product.setQuantity(updatedData.getQuantity());
+        product.setUpdatedAt(Instant.now());
 
         productRepository.save(product);
 
@@ -50,7 +56,8 @@ public class ProductService {
 
     public String removeProduct(Long id) {
         if (!productRepository.existsById(id)) {
-            throw new RuntimeException("No se puede eliminar. El producto con ID " + id + " no existe.");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Error: Producto no encontrado");
         }
         productRepository.deleteById(id);
 
