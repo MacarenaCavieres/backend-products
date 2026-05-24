@@ -2,14 +2,16 @@ package com.mccr.backend.ecommerce.service;
 
 import java.util.Base64;
 import java.util.Date;
+import java.util.List;
 
 import javax.crypto.SecretKey;
-import javax.management.relation.RoleList;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
+
+import com.mccr.backend.ecommerce.model.Role;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -17,12 +19,14 @@ import io.jsonwebtoken.security.Keys;
 
 @Service
 public class JwtService {
-    @Value("${jwt.secret}")
-    private String jwtSecret;
 
-    private SecretKey secretKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(jwtSecret));
+    private final SecretKey secretKey;
 
-    public String generateAccessToken(String userId, RoleList role) {
+    public JwtService(@Value("${jwt.secret}") String jwtSecret) {
+        this.secretKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(jwtSecret));
+    }
+
+    public String generateAccessToken(String userId, List<Role> role) {
         return generateToken(userId, role);
     }
 
@@ -56,7 +60,7 @@ public class JwtService {
         return claims.get("role", String.class);
     }
 
-    private String generateToken(String userId, RoleList role) {
+    private String generateToken(String userId, List<Role> role) {
         return Jwts.builder()
                 .claim("role", role)
                 .subject(userId)

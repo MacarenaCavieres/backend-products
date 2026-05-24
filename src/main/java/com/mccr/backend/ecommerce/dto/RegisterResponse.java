@@ -2,7 +2,7 @@ package com.mccr.backend.ecommerce.dto;
 
 import java.time.Instant;
 
-public class UserDto {
+public class RegisterResponse {
 
     private Long id;
     private String name;
@@ -11,7 +11,7 @@ public class UserDto {
     private Instant createdAt;
     private Instant updatedAt;
 
-    public UserDto(Long id, String name, String lastname, String email, Instant createdAt, Instant updatedAt) {
+    public RegisterResponse(Long id, String name, String lastname, String email, Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.name = name;
         this.lastname = lastname;
