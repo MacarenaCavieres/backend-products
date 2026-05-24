@@ -1,7 +1,9 @@
 package com.mccr.backend.ecommerce.service;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -11,12 +13,14 @@ import org.springframework.web.server.ResponseStatusException;
 import com.mccr.backend.ecommerce.config.HashEncoder;
 import com.mccr.backend.ecommerce.dto.LoginRequest;
 import com.mccr.backend.ecommerce.dto.LoginResponse;
-import com.mccr.backend.ecommerce.dto.RegisterResponse;
+import com.mccr.backend.ecommerce.dto.UserResponse;
 import com.mccr.backend.ecommerce.model.Role;
 import com.mccr.backend.ecommerce.model.User;
 import com.mccr.backend.ecommerce.model.enums.RoleList;
 import com.mccr.backend.ecommerce.repository.RoleRepository;
 import com.mccr.backend.ecommerce.repository.UserRepository;
+
+import jakarta.transaction.Transactional;
 
 @Service
 public class UserService {
@@ -33,7 +37,8 @@ public class UserService {
     @Autowired
     private JwtService jwtService;
 
-    public RegisterResponse register(User user) {
+    @Transactional
+    public UserResponse register(User user) {
         Optional<User> userFound = userRepository.findByEmail(user.getEmail().trim());
 
         if (userFound.isPresent()) {
@@ -42,16 +47,22 @@ public class UserService {
         }
 
         user.setPassword(hashEncoder.encode(user.getPassword()));
-        List<Role> roles = roleRepository.findByRole(RoleList.ROLE_USER);
-        user.setRoles(roles);
+        Optional<Role> roleFound = roleRepository.findByRole(RoleList.ROLE_USER);
+        if (!roleFound.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Error: El rol ROLE_USER no existe en la base de datos");
+        }
+
+        user.setRoles(List.of(roleFound.get()));
 
         User userCreated = userRepository.save(user);
 
-        return new RegisterResponse(userCreated.getId(), userCreated.getName(), userCreated.getLastname(),
+        return new UserResponse(userCreated.getId(), userCreated.getName(), userCreated.getLastname(),
                 userCreated.getEmail(), userCreated.getCreatedAt(), userCreated.getUpdatedAt());
 
     }
 
+    @Transactional
     public LoginResponse login(LoginRequest loginRequest) {
         Optional<User> userFound = userRepository.findByEmail(loginRequest.getEmail().trim());
 
@@ -60,9 +71,7 @@ public class UserService {
                     "Error: Usuario no registrado");
         }
 
-        boolean itMatches = hashEncoder.matches(loginRequest.getPassword(), userFound.get().getPassword());
-
-        if (!itMatches) {
+        if (!hashEncoder.matches(loginRequest.getPassword(), userFound.get().getPassword())) {
             throw new ResponseStatusException(HttpStatus.NOT_ACCEPTABLE,
                     "Error: Credenciales inválidas");
         }
@@ -71,6 +80,92 @@ public class UserService {
 
         return new LoginResponse(userFound.get().getName(), userFound.get().getLastname(), userFound.get().getEmail(),
                 token);
+
+    }
+
+    @Transactional
+    public List<UserResponse> getAllUsers() {
+        List<User> usersRaw = userRepository.findAll();
+
+        return usersRaw.stream().map(u -> new UserResponse(u.getId(), u.getName(), u.getLastname(),
+                u.getEmail(), u.getCreatedAt(), u.getUpdatedAt())).collect(Collectors.toList());
+
+    }
+
+    @Transactional
+    public UserResponse getUserById(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        return new UserResponse(user.getId(), user.getName(), user.getLastname(),
+                user.getLastname(), user.getCreatedAt(), user.getUpdatedAt());
+    }
+
+    @Transactional
+    public UserResponse updateUser(Long id, User user) {
+        User userById = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        if (!userById.getEmail().equals(user.getEmail())) {
+            Optional<User> userByEmail = userRepository.findByEmail(user.getEmail());
+
+            if (userByEmail.isPresent()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Usuario con ese email ya registrado");
+            }
+            userById.setEmail(user.getEmail());
+
+        }
+
+        userById.setName(user.getName());
+        userById.setLastname(user.getLastname());
+
+        if (user.getPassword() != null && !user.getPassword().trim().isEmpty()
+                && !hashEncoder.matches(user.getPassword(), userById.getPassword())) {
+            userById.setPassword(hashEncoder.encode(user.getPassword()));
+        }
+
+        userById.setUpdatedAt(Instant.now());
+
+        User userUpdated = userRepository.save(userById);
+
+        return new UserResponse(userUpdated.getId(), userUpdated.getName(), userUpdated.getLastname(),
+                userUpdated.getEmail(), userUpdated.getCreatedAt(), userUpdated.getUpdatedAt());
+
+    }
+
+    @Transactional
+    public String removeUser(Long id) {
+        Optional<User> user = userRepository.findById(id);
+
+        if (!user.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado");
+        }
+
+        userRepository.deleteById(id);
+
+        return "Usuario eliminado exitosamente";
+    }
+
+    @Transactional
+    public UserResponse addSupervisorRole(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        Role supervisorRole = roleRepository.findByRole(RoleList.ROLE_SUPERVISOR)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "El rol ROLE_SUPERVISOR no está creado en la base de datos"));
+
+        if (user.getRoles().contains(supervisorRole)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Usuario con ese rol ya asignado");
+        }
+
+        user.getRoles().add(supervisorRole);
+        user.setUpdatedAt(Instant.now());
+
+        User userUpdated = userRepository.save(user);
+
+        return new UserResponse(userUpdated.getId(), userUpdated.getName(), userUpdated.getLastname(),
+                userUpdated.getEmail(), userUpdated.getCreatedAt(), userUpdated.getUpdatedAt());
 
     }
 
