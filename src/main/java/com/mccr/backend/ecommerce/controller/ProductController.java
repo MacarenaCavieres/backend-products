@@ -28,30 +28,31 @@ public class ProductController {
     private ProductService productService;
 
     @PostMapping("/products")
-    public ResponseEntity<?> createNewProduct(@Valid @RequestBody Product product) {
+    public ResponseEntity<Product> createNewProduct(@Valid @RequestBody Product product) {
         Product newProduct = productService.createProduct(product);
         return ResponseEntity.status(HttpStatus.CREATED).body(newProduct);
     }
 
     @GetMapping("/products")
-    public List<Product> getAll() {
-        return productService.getAllProducts();
+    public ResponseEntity<List<Product>> getAll() {
+        List<Product> response = productService.getAllProducts();
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/products/{id}")
-    public ResponseEntity<?> getOne(@PathVariable Long id) {
+    public ResponseEntity<Product> getOne(@PathVariable Long id) {
         Product product = productService.findByProductId(id);
         return ResponseEntity.ok(product);
     }
 
     @PutMapping("/products/{id}")
-    public ResponseEntity<?> updateProduct(@PathVariable Long id, @Valid @RequestBody Product product) {
+    public ResponseEntity<Product> updateProduct(@PathVariable Long id, @Valid @RequestBody Product product) {
         Product productUpdated = productService.updateProduct(id, product);
         return ResponseEntity.ok(productUpdated);
     }
 
     @DeleteMapping("/products/{id}")
-    public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
+    public ResponseEntity<Map<String, String>> deleteProduct(@PathVariable Long id) {
         String message = productService.removeProduct(id);
         return ResponseEntity.ok(Map.of("message", message));
     }

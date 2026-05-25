@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -92,6 +93,7 @@ public class UserService {
 
     }
 
+    @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
     @Transactional
     public UserResponse getUserById(Long id) {
         User user = userRepository.findById(id)
@@ -101,6 +103,7 @@ public class UserService {
                 user.getLastname(), user.getCreatedAt(), user.getUpdatedAt());
     }
 
+    @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
     @Transactional
     public UserResponse updateUser(Long id, User user) {
         User userById = userRepository.findById(id)
@@ -133,8 +136,9 @@ public class UserService {
 
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Transactional
-    public String removeUser(Long id) {
+    public void removeUser(Long id) {
         Optional<User> user = userRepository.findById(id);
 
         if (!user.isPresent()) {
@@ -143,7 +147,6 @@ public class UserService {
 
         userRepository.deleteById(id);
 
-        return "Usuario eliminado exitosamente";
     }
 
     @Transactional

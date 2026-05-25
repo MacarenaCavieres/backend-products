@@ -2,6 +2,7 @@ package com.mccr.backend.ecommerce.config;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -11,6 +12,7 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.mccr.backend.ecommerce.model.enums.RoleList;
 import com.mccr.backend.ecommerce.service.JwtService;
 
 import jakarta.servlet.FilterChain;
@@ -31,12 +33,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (authHeader != null && authHeader.startsWith("Bearer")) {
             if (jwtService.validateAcessToken(authHeader)) {
                 String userId = jwtService.getUserIdFromToken(authHeader);
-                String role = jwtService.getRoleFromToken(authHeader);
-                SimpleGrantedAuthority authority = new SimpleGrantedAuthority(role);
+                List<RoleList> roles = jwtService.getRolesFromToken(authHeader);
+                List<SimpleGrantedAuthority> authorities = roles.stream()
+                        .map(r -> new SimpleGrantedAuthority(r.name()))
+                        .collect(Collectors.toList());
+
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userId,
                         null,
-                        List.of(authority));
+                        authorities);
 
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authToken);

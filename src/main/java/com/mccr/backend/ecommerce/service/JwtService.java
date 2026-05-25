@@ -1,8 +1,10 @@
 package com.mccr.backend.ecommerce.service;
 
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import javax.crypto.SecretKey;
 
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.mccr.backend.ecommerce.model.Role;
+import com.mccr.backend.ecommerce.model.enums.RoleList;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -52,12 +55,36 @@ public class JwtService {
         return claims.getSubject();
     }
 
-    public String getRoleFromToken(String token) {
+    public List<RoleList> getRolesFromToken(String token) {
         Claims claims = parseAllClaims(token);
         if (claims == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No autorizado");
         }
-        return claims.get("role", String.class);
+
+        List<RoleList> rolesNames = new ArrayList<>();
+        Object roleClaim = claims.get("role");
+
+        if (roleClaim instanceof List) {
+            List<?> rolesList = (List<?>) roleClaim;
+
+            for (Object roleObj : rolesList) {
+                if (roleObj instanceof Map) {
+                    Map<?, ?> roleMap = (Map<?, ?>) roleObj;
+                    String roleStr = roleMap.get("role").toString();
+                    rolesNames.add(RoleList.valueOf(roleStr));
+                } else if (roleObj != null) {
+                    rolesNames.add(RoleList.valueOf(roleObj.toString()));
+                }
+            }
+            return rolesNames;
+        }
+
+        if (roleClaim instanceof String) {
+            rolesNames.add(RoleList.valueOf((String) roleClaim));
+            return rolesNames;
+        }
+
+        return rolesNames;
     }
 
     private String generateToken(String userId, List<Role> role) {
