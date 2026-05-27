@@ -47,6 +47,10 @@ public class ProductService {
         product.setUrlImage(updatedData.getUrlImage());
         product.setPrice(updatedData.getPrice());
         product.setQuantity(updatedData.getQuantity());
+        product.setBrand(updatedData.getBrand());
+        product.setModel(updatedData.getModel());
+        product.setOrigin(updatedData.getOrigin());
+        product.setUsefulLife(updatedData.getUsefulLife());
         product.setUpdatedAt(Instant.now());
 
         productRepository.save(product);

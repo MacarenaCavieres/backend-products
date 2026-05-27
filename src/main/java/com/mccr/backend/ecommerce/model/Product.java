@@ -39,6 +39,22 @@ public class Product {
     @Column(nullable = false)
     private Long quantity;
 
+    @NotNull(message = "La marca del producto es obligatoria")
+    @Column(nullable = false)
+    private String brand;
+
+    @NotNull(message = "El modelo del producto es obligatoria")
+    @Column(nullable = false)
+    private String model;
+
+    @NotNull(message = "El origen del producto es obligatoria")
+    @Column(nullable = false)
+    private String origin;
+
+    @NotNull(message = "La vida útil del producto es obligatoria")
+    @Column(nullable = false)
+    private String usefulLife;
+
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
 
@@ -107,6 +123,38 @@ public class Product {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getBrand() {
+        return brand;
+    }
+
+    public void setBrand(String brand) {
+        this.brand = brand;
+    }
+
+    public String getModel() {
+        return model;
+    }
+
+    public void setModel(String model) {
+        this.model = model;
+    }
+
+    public String getOrigin() {
+        return origin;
+    }
+
+    public void setOrigin(String origin) {
+        this.origin = origin;
+    }
+
+    public String getUsefulLife() {
+        return usefulLife;
+    }
+
+    public void setUsefulLife(String usefulLife) {
+        this.usefulLife = usefulLife;
     }
 
 }
