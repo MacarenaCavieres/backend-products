@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -68,6 +69,12 @@ public class AuthController {
     @PostMapping("/users/{id}/assign-supervisor")
     public ResponseEntity<UserResponse> assignSupervisorRole(@PathVariable Long id) {
         UserResponse response = userService.addSupervisorRole(id);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/user")
+    public ResponseEntity<UserResponse> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
+        UserResponse response = userService.getUserByToken(authHeader);
         return ResponseEntity.ok(response);
     }
 

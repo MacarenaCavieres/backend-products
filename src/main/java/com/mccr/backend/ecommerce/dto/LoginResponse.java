@@ -1,17 +1,23 @@
 package com.mccr.backend.ecommerce.dto;
 
+import java.util.List;
+
+import com.mccr.backend.ecommerce.model.enums.RoleList;
+
 public class LoginResponse {
 
     private String name;
     private String lastname;
     private String email;
     private String token;
+    private List<RoleList> role;
 
-    public LoginResponse(String name, String lastname, String email, String token) {
+    public LoginResponse(String name, String lastname, String email, String token, List<RoleList> role) {
         this.name = name;
         this.lastname = lastname;
         this.email = email;
         this.token = token;
+        this.role = role;
     }
 
     public String getName() {
@@ -44,6 +50,14 @@ public class LoginResponse {
 
     public void setToken(String token) {
         this.token = token;
+    }
+
+    public List<RoleList> getRole() {
+        return role;
+    }
+
+    public void setRole(List<RoleList> role) {
+        this.role = role;
     }
 
 }

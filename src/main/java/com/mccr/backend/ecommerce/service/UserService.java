@@ -78,9 +78,11 @@ public class UserService {
         }
 
         String token = jwtService.generateAccessToken(userFound.get().getId().toString(), userFound.get().getRoles());
+        List<Role> roles = userFound.get().getRoles();
+        List<RoleList> roleNames = roles.stream().map(Role::getRole).toList();
 
         return new LoginResponse(userFound.get().getName(), userFound.get().getLastname(), userFound.get().getEmail(),
-                token);
+                token, roleNames);
 
     }
 
@@ -169,6 +171,17 @@ public class UserService {
 
         return new UserResponse(userUpdated.getId(), userUpdated.getName(), userUpdated.getLastname(),
                 userUpdated.getEmail(), userUpdated.getCreatedAt(), userUpdated.getUpdatedAt());
+
+    }
+
+    @Transactional
+    public UserResponse getUserByToken(String token) {
+        String id = jwtService.getUserIdFromToken(token);
+        User user = userRepository.findById(Long.parseLong(id))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        return new UserResponse(user.getId(), user.getName(), user.getLastname(),
+                user.getEmail(), user.getCreatedAt(), user.getUpdatedAt());
 
     }
 
