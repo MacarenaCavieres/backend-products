@@ -10,14 +10,14 @@ public class LoginResponse {
     private String lastname;
     private String email;
     private String token;
-    private List<RoleList> role;
+    private List<RoleList> roles;
 
-    public LoginResponse(String name, String lastname, String email, String token, List<RoleList> role) {
+    public LoginResponse(String name, String lastname, String email, String token, List<RoleList> roles) {
         this.name = name;
         this.lastname = lastname;
         this.email = email;
         this.token = token;
-        this.role = role;
+        this.roles = roles;
     }
 
     public String getName() {
@@ -52,12 +52,12 @@ public class LoginResponse {
         this.token = token;
     }
 
-    public List<RoleList> getRole() {
-        return role;
+    public List<RoleList> getRoles() {
+        return roles;
     }
 
-    public void setRole(List<RoleList> role) {
-        this.role = role;
+    public void setRoles(List<RoleList> roles) {
+        this.roles = roles;
     }
 
 }
