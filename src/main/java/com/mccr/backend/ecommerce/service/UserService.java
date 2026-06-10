@@ -59,7 +59,8 @@ public class UserService {
         User userCreated = userRepository.save(user);
 
         return new UserResponse(userCreated.getId(), userCreated.getName(), userCreated.getLastname(),
-                userCreated.getEmail(), userCreated.getCreatedAt(), userCreated.getUpdatedAt());
+                userCreated.getEmail(), userCreated.getRoles().stream().map(Role::getRole).toList(),
+                userCreated.getCreatedAt(), userCreated.getUpdatedAt());
 
     }
 
@@ -91,7 +92,8 @@ public class UserService {
         List<User> usersRaw = userRepository.findAll();
 
         return usersRaw.stream().map(u -> new UserResponse(u.getId(), u.getName(), u.getLastname(),
-                u.getEmail(), u.getCreatedAt(), u.getUpdatedAt())).collect(Collectors.toList());
+                u.getEmail(), u.getRoles().stream().map(Role::getRole).toList(), u.getCreatedAt(), u.getUpdatedAt()))
+                .collect(Collectors.toList());
 
     }
 
@@ -102,7 +104,8 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
         return new UserResponse(user.getId(), user.getName(), user.getLastname(),
-                user.getLastname(), user.getCreatedAt(), user.getUpdatedAt());
+                user.getLastname(), user.getRoles().stream().map(Role::getRole).toList(), user.getCreatedAt(),
+                user.getUpdatedAt());
     }
 
     @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
@@ -134,7 +137,8 @@ public class UserService {
         User userUpdated = userRepository.save(userById);
 
         return new UserResponse(userUpdated.getId(), userUpdated.getName(), userUpdated.getLastname(),
-                userUpdated.getEmail(), userUpdated.getCreatedAt(), userUpdated.getUpdatedAt());
+                userUpdated.getEmail(), userUpdated.getRoles().stream().map(Role::getRole).toList(),
+                userUpdated.getCreatedAt(), userUpdated.getUpdatedAt());
 
     }
 
@@ -170,7 +174,8 @@ public class UserService {
         User userUpdated = userRepository.save(user);
 
         return new UserResponse(userUpdated.getId(), userUpdated.getName(), userUpdated.getLastname(),
-                userUpdated.getEmail(), userUpdated.getCreatedAt(), userUpdated.getUpdatedAt());
+                userUpdated.getEmail(), userUpdated.getRoles().stream().map(Role::getRole).toList(),
+                userUpdated.getCreatedAt(), userUpdated.getUpdatedAt());
 
     }
 
@@ -181,7 +186,8 @@ public class UserService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
         return new UserResponse(user.getId(), user.getName(), user.getLastname(),
-                user.getEmail(), user.getCreatedAt(), user.getUpdatedAt());
+                user.getEmail(), user.getRoles().stream().map(Role::getRole).toList(), user.getCreatedAt(),
+                user.getUpdatedAt());
 
     }
 

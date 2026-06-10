@@ -92,7 +92,7 @@ public class JwtService {
                 .claim("role", role)
                 .subject(userId)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + 3600000)).signWith(secretKey, Jwts.SIG.HS256)
+                .expiration(new Date(System.currentTimeMillis() + 19_600_000)).signWith(secretKey, Jwts.SIG.HS256)
                 .compact();
     }
 
