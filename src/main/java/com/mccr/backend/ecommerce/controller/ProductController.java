@@ -3,7 +3,6 @@ package com.mccr.backend.ecommerce.controller;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,13 +18,14 @@ import com.mccr.backend.ecommerce.model.Product;
 import com.mccr.backend.ecommerce.service.ProductService;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api")
+@RequiredArgsConstructor
 public class ProductController {
 
-    @Autowired
-    private ProductService productService;
+    private final ProductService productService;
 
     @PostMapping("/products")
     public ResponseEntity<Product> createNewProduct(@Valid @RequestBody Product product) {
