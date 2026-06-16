@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.mccr.backend.ecommerce.dto.LoginRequest;
 import com.mccr.backend.ecommerce.dto.LoginResponse;
+import com.mccr.backend.ecommerce.dto.ResetPasswordRequest;
 import com.mccr.backend.ecommerce.dto.UserResponse;
 import com.mccr.backend.ecommerce.model.User;
 import com.mccr.backend.ecommerce.service.UserService;
@@ -76,6 +77,11 @@ public class AuthController {
     public ResponseEntity<UserResponse> getCurrentUser(@RequestHeader("Authorization") String authHeader) {
         UserResponse response = userService.getUserByToken(authHeader);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest resetPasswordRequest) {
+        userService.requestPasswordReset(resetPasswordRequest);
     }
 
 }

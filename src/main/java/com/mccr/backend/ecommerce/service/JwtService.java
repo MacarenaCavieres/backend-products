@@ -24,13 +24,19 @@ import io.jsonwebtoken.security.Keys;
 public class JwtService {
 
     private final SecretKey secretKey;
+    public Long expirationTokenTime = 19_600_000L;
+    public Long expirationTokenResetTime = 900_000L;
 
     public JwtService(@Value("${jwt.secret}") String jwtSecret) {
         this.secretKey = Keys.hmacShaKeyFor(Base64.getDecoder().decode(jwtSecret));
     }
 
     public String generateAccessToken(String userId, List<Role> role) {
-        return generateToken(userId, role);
+        return generateToken(userId, role, expirationTokenTime);
+    }
+
+    public String generateResetPasswordToken(String userId, List<Role> role) {
+        return generateToken(userId, role, expirationTokenResetTime);
     }
 
     public boolean validateAcessToken(String token) {
@@ -87,12 +93,12 @@ public class JwtService {
         return rolesNames;
     }
 
-    private String generateToken(String userId, List<Role> role) {
+    private String generateToken(String userId, List<Role> role, Long expiration) {
         return Jwts.builder()
                 .claim("role", role)
                 .subject(userId)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + 19_600_000)).signWith(secretKey, Jwts.SIG.HS256)
+                .expiration(new Date(System.currentTimeMillis() + expiration)).signWith(secretKey, Jwts.SIG.HS256)
                 .compact();
     }
 

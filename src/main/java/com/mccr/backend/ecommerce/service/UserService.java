@@ -13,10 +13,13 @@ import org.springframework.web.server.ResponseStatusException;
 import com.mccr.backend.ecommerce.config.HashEncoder;
 import com.mccr.backend.ecommerce.dto.LoginRequest;
 import com.mccr.backend.ecommerce.dto.LoginResponse;
+import com.mccr.backend.ecommerce.dto.ResetPasswordRequest;
 import com.mccr.backend.ecommerce.dto.UserResponse;
+import com.mccr.backend.ecommerce.model.PasswordResetToken;
 import com.mccr.backend.ecommerce.model.Role;
 import com.mccr.backend.ecommerce.model.User;
 import com.mccr.backend.ecommerce.model.enums.RoleList;
+import com.mccr.backend.ecommerce.repository.PasswordResetRepository;
 import com.mccr.backend.ecommerce.repository.RoleRepository;
 import com.mccr.backend.ecommerce.repository.UserRepository;
 
@@ -28,12 +31,11 @@ import lombok.RequiredArgsConstructor;
 public class UserService {
 
     private final UserRepository userRepository;
-
     private final RoleRepository roleRepository;
-
+    private final PasswordResetRepository passwordResetRepository;
     private final HashEncoder hashEncoder;
-
     private final JwtService jwtService;
+    private final EmailService emailService;
 
     @Transactional
     public UserResponse register(User user) {
@@ -185,6 +187,28 @@ public class UserService {
         return new UserResponse(user.getId(), user.getName(), user.getLastname(),
                 user.getEmail(), user.getRoles().stream().map(Role::getRole).toList(), user.getCreatedAt(),
                 user.getUpdatedAt());
+
+    }
+
+    @Transactional
+    public void requestPasswordReset(ResetPasswordRequest resetPasswordRequest) {
+        User user = userRepository.findByEmail(resetPasswordRequest.getEmail())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+
+        passwordResetRepository.deleteByUserId(user.getId());
+
+        List<Role> rolesList = user.getRoles();
+
+        String newResetPasswordToken = jwtService.generateResetPasswordToken(resetPasswordRequest.getEmail(),
+                rolesList);
+        Long expiration = jwtService.expirationTokenResetTime;
+        Instant expiresAt = Instant.now().plusMillis(expiration);
+
+        PasswordResetToken resetToken = new PasswordResetToken(newResetPasswordToken, user.getId(), expiresAt);
+
+        passwordResetRepository.save(resetToken);
+
+        emailService.sendPasswordResetEmail(user.getEmail(), newResetPasswordToken);
 
     }
 
