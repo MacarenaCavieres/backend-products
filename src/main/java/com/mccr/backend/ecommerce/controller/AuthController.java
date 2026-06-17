@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.mccr.backend.ecommerce.dto.LoginRequest;
 import com.mccr.backend.ecommerce.dto.LoginResponse;
+import com.mccr.backend.ecommerce.dto.RecoveryPassword;
 import com.mccr.backend.ecommerce.dto.ResetPasswordRequest;
 import com.mccr.backend.ecommerce.dto.UserResponse;
 import com.mccr.backend.ecommerce.model.User;
@@ -80,8 +81,14 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public void resetPassword(@Valid @RequestBody ResetPasswordRequest resetPasswordRequest) {
+    public void forgotPassword(@Valid @RequestBody ResetPasswordRequest resetPasswordRequest) {
         userService.requestPasswordReset(resetPasswordRequest);
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<String> resetPassword(@Valid @RequestBody RecoveryPassword resetPasswordRequest) {
+        String message = userService.recoveryPassword(resetPasswordRequest);
+        return ResponseEntity.ok(message);
     }
 
 }

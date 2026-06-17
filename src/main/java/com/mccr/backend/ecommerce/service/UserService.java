@@ -13,6 +13,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.mccr.backend.ecommerce.config.HashEncoder;
 import com.mccr.backend.ecommerce.dto.LoginRequest;
 import com.mccr.backend.ecommerce.dto.LoginResponse;
+import com.mccr.backend.ecommerce.dto.RecoveryPassword;
 import com.mccr.backend.ecommerce.dto.ResetPasswordRequest;
 import com.mccr.backend.ecommerce.dto.UserResponse;
 import com.mccr.backend.ecommerce.model.PasswordResetToken;
@@ -209,6 +210,37 @@ public class UserService {
         passwordResetRepository.save(resetToken);
 
         emailService.sendPasswordResetEmail(user.getEmail(), newResetPasswordToken);
+
+    }
+
+    @Transactional
+    public String recoveryPassword(RecoveryPassword recoveryInfo) {
+
+        boolean isValidToken = jwtService.validateAcessToken(recoveryInfo.getToken());
+
+        if (!isValidToken) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token expirado, solicite otro");
+        }
+
+        Optional<PasswordResetToken> optionalToken = passwordResetRepository.findByToken(recoveryInfo.getToken());
+
+        if (!optionalToken.isPresent() || optionalToken.get().isUsed()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token ya usado, solicite otro");
+        }
+
+        Optional<User> optionalUser = userRepository.findById(optionalToken.get().getUserId());
+
+        if (!optionalUser.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario asociado a ese token no encontrado");
+        }
+
+        optionalUser.get().setPassword(hashEncoder.encode(recoveryInfo.getPassword()));
+        userRepository.save(optionalUser.get());
+
+        optionalToken.get().setUsed(true);
+        passwordResetRepository.save(optionalToken.get());
+
+        return "Contraseña restablecida";
 
     }
 
