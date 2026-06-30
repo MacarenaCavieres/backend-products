@@ -1,16 +1,20 @@
 package com.mccr.backend.ecommerce.model;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.Email;
@@ -45,6 +49,9 @@ public class User {
     @JoinTable(name = "users_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"), uniqueConstraints = {
             @UniqueConstraint(columnNames = { "user_id", "role_id" }) })
     private List<Role> roles;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Payment> payments = new ArrayList<>();
 
     @Column(nullable = false)
     private Instant createdAt = Instant.now();
@@ -98,6 +105,14 @@ public class User {
 
     public void setRoles(List<Role> roles) {
         this.roles = roles;
+    }
+
+    public List<Payment> getPayments() {
+        return payments;
+    }
+
+    public void setPayments(List<Payment> payments) {
+        this.payments = payments;
     }
 
     public Instant getCreatedAt() {

@@ -38,6 +38,7 @@ public class UserService {
     private final JwtService jwtService;
     private final EmailService emailService;
 
+    @SuppressWarnings("null")
     @Transactional
     public UserResponse register(User user) {
         Optional<User> userFound = userRepository.findByEmail(user.getEmail().trim());
@@ -64,6 +65,7 @@ public class UserService {
 
     }
 
+    @SuppressWarnings("null")
     @Transactional
     public LoginResponse login(LoginRequest loginRequest) {
         Optional<User> userFound = userRepository.findByEmail(loginRequest.getEmail().trim());
@@ -87,6 +89,7 @@ public class UserService {
 
     }
 
+    @SuppressWarnings("null")
     @Transactional
     public List<UserResponse> getAllUsers() {
         List<User> usersRaw = userRepository.findAll();
@@ -97,6 +100,7 @@ public class UserService {
 
     }
 
+    @SuppressWarnings("null")
     @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
     @Transactional
     public UserResponse getUserById(Long id) {
@@ -108,6 +112,7 @@ public class UserService {
                 user.getUpdatedAt());
     }
 
+    @SuppressWarnings("null")
     @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
     @Transactional
     public UserResponse updateUser(Long id, User user) {
@@ -155,6 +160,7 @@ public class UserService {
 
     }
 
+    @SuppressWarnings("null")
     @Transactional
     public UserResponse addSupervisorRole(Long id) {
         User user = userRepository.findById(id)
@@ -179,6 +185,7 @@ public class UserService {
 
     }
 
+    @SuppressWarnings("null")
     @Transactional
     public UserResponse getUserByToken(String token) {
         String id = jwtService.getUserIdFromToken(token);
