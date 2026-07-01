@@ -8,7 +8,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.mccr.backend.ecommerce.dto.ItemCart;
+import com.mccr.backend.ecommerce.dto.OrderItemResponse;
 import com.mccr.backend.ecommerce.dto.PaymentRequest;
+import com.mccr.backend.ecommerce.dto.PaymentResponse;
+import com.mccr.backend.ecommerce.dto.ProductSummaryResponse;
 import com.mccr.backend.ecommerce.model.Payment;
 import com.mccr.backend.ecommerce.model.OrderItem;
 import com.mccr.backend.ecommerce.model.Product;
@@ -29,13 +33,12 @@ public class PaymentService {
     private final JwtService jwtService;
 
     @SuppressWarnings("null")
-    public Payment createPayment(String token, PaymentRequest newPayment) {
+    public PaymentResponse createPayment(String token, PaymentRequest newPayment) {
         Long userId = Long.parseLong(jwtService.getUserIdFromToken(token));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
 
-        List<Long> productsIds = newPayment.getItems().stream().map(PaymentRequest.ItemCartDTO::getProductId)
-                .collect(Collectors.toList());
+        List<Long> productsIds = newPayment.items().stream().map(ItemCart::productId).toList();
 
         List<Product> products = productRepository.findAllById(productsIds);
 
@@ -45,41 +48,92 @@ public class PaymentService {
                 .collect(Collectors.toMap(Product::getId, product -> product));
 
         Payment payment = new Payment();
-        payment.setAmount(newPayment.getAmount());
-        payment.setAddress(newPayment.getAddress());
+        payment.setAmount(newPayment.amount());
+        payment.setAddress(newPayment.address());
         payment.setUser(user);
 
-        for (PaymentRequest.ItemCartDTO item : newPayment.getItems()) {
-            Product product = productMap.get(item.getProductId());
+        for (ItemCart item : newPayment.items()) {
+            Product product = productMap.get(item.productId());
 
             if (product == null) {
                 throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "El producto con ID " + item.getProductId() + " no existe en el catálogo");
+                        "El producto con ID " + item.productId() + " no existe en el catálogo");
 
             }
 
-            if (product.getQuantity() < item.getQuantity()) {
+            if (product.getQuantity() < item.quantity()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Stock insuficiente para el producto: " + product.getName());
             }
 
-            product.setQuantity(product.getQuantity() - item.getQuantity());
+            product.setQuantity(product.getQuantity() - item.quantity());
 
             OrderItem paymentItem = new OrderItem();
             paymentItem.setProduct(product);
-            paymentItem.setQuantity(item.getQuantity());
-            paymentItem.setPriceAtPurchase(item.getPriceAtPurchase());
+            paymentItem.setQuantity(item.quantity());
+            paymentItem.setPriceAtPurchase(item.priceAtPurchase());
             paymentItem.setPayment(payment);
 
             payment.getItems().add(paymentItem);
         }
 
-        return paymentRepository.save(payment);
+        Payment paymentSaved = paymentRepository.save(payment);
+
+        List<OrderItemResponse> itemsResponse = paymentSaved.getItems().stream().map(item -> {
+            Product prod = item.getProduct();
+
+            ProductSummaryResponse productSummary = new ProductSummaryResponse(
+                    prod.getId(),
+                    prod.getName(),
+                    prod.getUrlImage(),
+                    prod.getBrand(),
+                    prod.getModel());
+
+            return new OrderItemResponse(
+                    item.getId(),
+                    item.getQuantity(),
+                    item.getPriceAtPurchase(),
+                    productSummary);
+        }).toList();
+
+        return new PaymentResponse(
+                paymentSaved.getId(),
+                paymentSaved.getAmount(),
+                paymentSaved.getAddress(),
+                itemsResponse);
 
     }
 
-    public List<Payment> getAllPayments() {
-        return paymentRepository.findAll();
+    public List<PaymentResponse> getAllPayments(String token) {
+        Long userId = Long.parseLong(jwtService.getUserIdFromToken(token));
+
+        List<Payment> payments = paymentRepository.findAllByUserId(userId);
+
+        return payments.stream().map(payment -> {
+            List<OrderItemResponse> itemsResponse = payment.getItems().stream().map(item -> {
+                Product prod = item.getProduct();
+
+                ProductSummaryResponse productSummary = new ProductSummaryResponse(
+                        prod.getId(),
+                        prod.getName(),
+                        prod.getUrlImage(),
+                        prod.getBrand(),
+                        prod.getModel());
+
+                return new OrderItemResponse(
+                        item.getId(),
+                        item.getQuantity(),
+                        item.getPriceAtPurchase(),
+                        productSummary);
+            }).toList();
+
+            return new PaymentResponse(
+                    payment.getId(),
+                    payment.getAmount(),
+                    payment.getAddress(),
+                    itemsResponse);
+        }).toList();
+
     }
 
 }

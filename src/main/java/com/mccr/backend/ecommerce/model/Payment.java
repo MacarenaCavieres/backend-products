@@ -31,6 +31,10 @@ public class Payment {
     @Column(nullable = false)
     private String address;
 
+    // relacion bidireccional con User
+    // dueño de la relacion (el que es Many)
+    // Le dice a JPA que muchos pagos pueden estar asociados a un mismo usuario.
+    // guarda fisicamente la llave foranea en la bbdd
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;

@@ -26,6 +26,7 @@ public class OrderItem {
     @Column(nullable = false)
     private Long priceAtPurchase;
 
+    // dueño de la relacion
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "payment_id", nullable = false)
     private Payment payment;

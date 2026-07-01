@@ -4,7 +4,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.mccr.backend.ecommerce.dto.PaymentRequest;
-import com.mccr.backend.ecommerce.model.Payment;
+import com.mccr.backend.ecommerce.dto.PaymentResponse;
 import com.mccr.backend.ecommerce.service.PaymentService;
 
 import lombok.RequiredArgsConstructor;
@@ -26,16 +26,16 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     @PostMapping("payments")
-    public ResponseEntity<Payment> addPayment(@RequestHeader("Authorization") String authHeader,
+    public ResponseEntity<PaymentResponse> addPayment(@RequestHeader("Authorization") String authHeader,
             @RequestBody PaymentRequest payment) {
-        Payment newPayment = paymentService.createPayment(authHeader, payment);
+        PaymentResponse newPayment = paymentService.createPayment(authHeader, payment);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(newPayment);
     }
 
     @GetMapping("payments")
-    public ResponseEntity<List<Payment>> getAll() {
-        List<Payment> response = paymentService.getAllPayments();
+    public ResponseEntity<List<PaymentResponse>> getAll(@RequestHeader("Authorization") String authHeader) {
+        List<PaymentResponse> response = paymentService.getAllPayments(authHeader);
         return ResponseEntity.ok(response);
     }
 

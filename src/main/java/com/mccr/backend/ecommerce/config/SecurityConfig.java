@@ -47,6 +47,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/auth/user").hasAnyRole("USER", "SUPERVISOR", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/auth/users/{id}").hasAnyRole("USER", "SUPERVISOR", "ADMIN")
 
+                        // pagos
+                        .requestMatchers(HttpMethod.GET, "/api/payments/**").hasAnyRole("USER", "SUPERVISOR", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/payments/**").hasAnyRole("USER", "SUPERVISOR", "ADMIN")
+
                         // Todo lo demás de usuarios (Crear, Eliminar, Listar todos) queda EXCLUSIVO
                         // para el ADMIN
                         .requestMatchers("/auth/users/**").hasRole("ADMIN")

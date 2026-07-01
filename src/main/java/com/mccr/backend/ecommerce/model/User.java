@@ -45,11 +45,15 @@ public class User {
     @NotBlank(message = "La contraseña es requerida")
     private String password;
 
+    // User es la dueña de la relacion (el @joinTable)
+    // es una relación unidireccional
     @ManyToMany
     @JoinTable(name = "users_roles", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "role_id"), uniqueConstraints = {
             @UniqueConstraint(columnNames = { "user_id", "role_id" }) })
     private List<Role> roles;
 
+    // relacion bidireccional con Payment
+    // Le dice a JPA que un usuario tiene una colección de pagos asociados
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Payment> payments = new ArrayList<>();
 

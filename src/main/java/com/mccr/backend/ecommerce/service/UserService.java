@@ -41,21 +41,16 @@ public class UserService {
     @SuppressWarnings("null")
     @Transactional
     public UserResponse register(User user) {
-        Optional<User> userFound = userRepository.findByEmail(user.getEmail().trim());
-
-        if (userFound.isPresent()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Error: Usuario ya registrado");
-        }
+        userRepository.findByEmail(user.getEmail().trim())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Error: Usuario ya registrado"));
 
         user.setPassword(hashEncoder.encode(user.getPassword()));
-        Optional<Role> roleFound = roleRepository.findByRole(RoleList.ROLE_USER);
-        if (!roleFound.isPresent()) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Error: El rol ROLE_USER no existe en la base de datos");
-        }
+        Role roleFound = roleRepository.findByRole(RoleList.ROLE_USER)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Error: El rol ROLE_USER no existe en la base de datos"));
 
-        user.setRoles(List.of(roleFound.get()));
+        user.setRoles(List.of(roleFound));
 
         User userCreated = userRepository.save(user);
 
@@ -68,23 +63,20 @@ public class UserService {
     @SuppressWarnings("null")
     @Transactional
     public LoginResponse login(LoginRequest loginRequest) {
-        Optional<User> userFound = userRepository.findByEmail(loginRequest.getEmail().trim());
+        User userFound = userRepository.findByEmail(loginRequest.email().trim())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Error: Usuario no registrado"));
 
-        if (!userFound.isPresent()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "Error: Usuario no registrado");
-        }
-
-        if (!hashEncoder.matches(loginRequest.getPassword(), userFound.get().getPassword())) {
+        if (!hashEncoder.matches(loginRequest.password(), userFound.getPassword())) {
             throw new ResponseStatusException(HttpStatus.NOT_ACCEPTABLE,
                     "Error: Credenciales inválidas");
         }
 
-        String token = jwtService.generateAccessToken(userFound.get().getId().toString(), userFound.get().getRoles());
-        List<Role> roles = userFound.get().getRoles();
+        String token = jwtService.generateAccessToken(userFound.getId().toString(), userFound.getRoles());
+        List<Role> roles = userFound.getRoles();
         List<RoleList> roleNames = roles.stream().map(Role::getRole).toList();
 
-        return new LoginResponse(userFound.get().getName(), userFound.get().getLastname(), userFound.get().getEmail(),
+        return new LoginResponse(userFound.getName(), userFound.getLastname(), userFound.getEmail(),
                 token, roleNames);
 
     }
@@ -95,7 +87,8 @@ public class UserService {
         List<User> usersRaw = userRepository.findAll();
 
         return usersRaw.stream().map(u -> new UserResponse(u.getId(), u.getName(), u.getLastname(),
-                u.getEmail(), u.getRoles().stream().map(Role::getRole).toList(), u.getCreatedAt(), u.getUpdatedAt()))
+                u.getEmail(), u.getRoles().stream().map(Role::getRole).toList(), u.getCreatedAt(),
+                u.getUpdatedAt()))
                 .collect(Collectors.toList());
 
     }
@@ -105,10 +98,12 @@ public class UserService {
     @Transactional
     public UserResponse getUserById(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Usuario no encontrado"));
 
         return new UserResponse(user.getId(), user.getName(), user.getLastname(),
-                user.getLastname(), user.getRoles().stream().map(Role::getRole).toList(), user.getCreatedAt(),
+                user.getLastname(), user.getRoles().stream().map(Role::getRole).toList(),
+                user.getCreatedAt(),
                 user.getUpdatedAt());
     }
 
@@ -117,13 +112,15 @@ public class UserService {
     @Transactional
     public UserResponse updateUser(Long id, User user) {
         User userById = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Usuario no encontrado"));
 
         if (!userById.getEmail().equals(user.getEmail())) {
             Optional<User> userByEmail = userRepository.findByEmail(user.getEmail());
 
             if (userByEmail.isPresent()) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Usuario con ese email ya registrado");
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Usuario con ese email ya registrado");
             }
             userById.setEmail(user.getEmail());
 
@@ -150,11 +147,9 @@ public class UserService {
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public void removeUser(Long id) {
-        Optional<User> user = userRepository.findById(id);
-
-        if (!user.isPresent()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado");
-        }
+        userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Usuario no encontrado"));
 
         userRepository.deleteById(id);
 
@@ -164,7 +159,8 @@ public class UserService {
     @Transactional
     public UserResponse addSupervisorRole(Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Usuario no encontrado"));
 
         Role supervisorRole = roleRepository.findByRole(RoleList.ROLE_SUPERVISOR)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
@@ -190,24 +186,27 @@ public class UserService {
     public UserResponse getUserByToken(String token) {
         String id = jwtService.getUserIdFromToken(token);
         User user = userRepository.findById(Long.parseLong(id))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Usuario no encontrado"));
 
         return new UserResponse(user.getId(), user.getName(), user.getLastname(),
-                user.getEmail(), user.getRoles().stream().map(Role::getRole).toList(), user.getCreatedAt(),
+                user.getEmail(), user.getRoles().stream().map(Role::getRole).toList(),
+                user.getCreatedAt(),
                 user.getUpdatedAt());
 
     }
 
     @Transactional
     public void requestPasswordReset(ResetPasswordRequest resetPasswordRequest) {
-        User user = userRepository.findByEmail(resetPasswordRequest.getEmail())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+        User user = userRepository.findByEmail(resetPasswordRequest.email())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Usuario no encontrado"));
 
         passwordResetRepository.deleteByUserId(user.getId());
 
         List<Role> rolesList = user.getRoles();
 
-        String newResetPasswordToken = jwtService.generateResetPasswordToken(resetPasswordRequest.getEmail(),
+        String newResetPasswordToken = jwtService.generateResetPasswordToken(resetPasswordRequest.email(),
                 rolesList);
         Long expiration = jwtService.expirationTokenResetTime;
         Instant expiresAt = Instant.now().plusMillis(expiration);
@@ -223,26 +222,24 @@ public class UserService {
     @Transactional
     public String recoveryPassword(RecoveryPassword recoveryInfo) {
 
-        boolean isValidToken = jwtService.validateAcessToken(recoveryInfo.getToken());
+        boolean isValidToken = jwtService.validateAcessToken(recoveryInfo.token());
 
         if (!isValidToken) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token expirado, solicite otro");
         }
 
-        Optional<PasswordResetToken> optionalToken = passwordResetRepository.findByToken(recoveryInfo.getToken());
+        Optional<PasswordResetToken> optionalToken = passwordResetRepository.findByToken(recoveryInfo.token());
 
         if (!optionalToken.isPresent() || optionalToken.get().isUsed()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token ya usado, solicite otro");
         }
 
-        Optional<User> optionalUser = userRepository.findById(optionalToken.get().getUserId());
+        User user = userRepository.findById(optionalToken.get().getUserId()).orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Usuario asociado a ese token no encontrado"));
 
-        if (!optionalUser.isPresent()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario asociado a ese token no encontrado");
-        }
-
-        optionalUser.get().setPassword(hashEncoder.encode(recoveryInfo.getPassword()));
-        userRepository.save(optionalUser.get());
+        user.setPassword(hashEncoder.encode(recoveryInfo.password()));
+        userRepository.save(user);
 
         optionalToken.get().setUsed(true);
         passwordResetRepository.save(optionalToken.get());

@@ -2,7 +2,6 @@ package com.mccr.backend.ecommerce.config;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -35,8 +34,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 String userId = jwtService.getUserIdFromToken(authHeader);
                 List<RoleList> roles = jwtService.getRolesFromToken(authHeader);
                 List<SimpleGrantedAuthority> authorities = roles.stream()
-                        .map(r -> new SimpleGrantedAuthority(r.name()))
-                        .collect(Collectors.toList());
+                        .map(r -> new SimpleGrantedAuthority(r.name())).toList();
 
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userId,
