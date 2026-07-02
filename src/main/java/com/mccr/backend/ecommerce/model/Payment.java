@@ -1,5 +1,6 @@
 package com.mccr.backend.ecommerce.model;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,7 +15,9 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 @Entity
 @Table(name = "payments")
@@ -23,13 +26,17 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank(message = "El monto no puede estar vacío")
+    @NotNull(message = "El monto no puede ser nulo")
+    @Min(value = 1, message = "El monto debe ser mayor o igual a 1")
     @Column(nullable = false)
-    private String amount;
+    private Integer amount;
 
     @NotBlank(message = "La dirección no puede estar vacía")
     @Column(nullable = false)
     private String address;
+
+    @Column(nullable = false)
+    private Instant createdAt = Instant.now();
 
     // relacion bidireccional con User
     // dueño de la relacion (el que es Many)
@@ -50,11 +57,11 @@ public class Payment {
         this.id = id;
     }
 
-    public String getAmount() {
+    public Integer getAmount() {
         return amount;
     }
 
-    public void setAmount(String amount) {
+    public void setAmount(Integer amount) {
         this.amount = amount;
     }
 
@@ -64,6 +71,14 @@ public class Payment {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
     }
 
     public User getUser() {

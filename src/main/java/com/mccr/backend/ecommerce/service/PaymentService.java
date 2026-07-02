@@ -36,7 +36,8 @@ public class PaymentService {
     public PaymentResponse createPayment(String token, PaymentRequest newPayment) {
         Long userId = Long.parseLong(jwtService.getUserIdFromToken(token));
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Usuario no encontrado"));
 
         List<Long> productsIds = newPayment.items().stream().map(ItemCart::productId).toList();
 
@@ -100,6 +101,7 @@ public class PaymentService {
                 paymentSaved.getId(),
                 paymentSaved.getAmount(),
                 paymentSaved.getAddress(),
+                paymentSaved.getCreatedAt(),
                 itemsResponse);
 
     }
@@ -131,6 +133,7 @@ public class PaymentService {
                     payment.getId(),
                     payment.getAmount(),
                     payment.getAddress(),
+                    payment.getCreatedAt(),
                     itemsResponse);
         }).toList();
 
