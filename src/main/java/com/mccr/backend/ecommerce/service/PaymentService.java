@@ -2,6 +2,7 @@ package com.mccr.backend.ecommerce.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,7 @@ import com.mccr.backend.ecommerce.dto.ItemCart;
 import com.mccr.backend.ecommerce.dto.OrderItemResponse;
 import com.mccr.backend.ecommerce.dto.PaymentRequest;
 import com.mccr.backend.ecommerce.dto.PaymentResponse;
+import com.mccr.backend.ecommerce.dto.PaymentSummary;
 import com.mccr.backend.ecommerce.dto.ProductSummaryResponse;
 import com.mccr.backend.ecommerce.model.Payment;
 import com.mccr.backend.ecommerce.model.OrderItem;
@@ -106,36 +108,53 @@ public class PaymentService {
 
     }
 
-    public List<PaymentResponse> getAllPayments(String token) {
+    public List<PaymentSummary> getAllPayments(String token) {
         Long userId = Long.parseLong(jwtService.getUserIdFromToken(token));
 
         List<Payment> payments = paymentRepository.findAllByUserId(userId);
 
-        return payments.stream().map(payment -> {
-            List<OrderItemResponse> itemsResponse = payment.getItems().stream().map(item -> {
-                Product prod = item.getProduct();
-
-                ProductSummaryResponse productSummary = new ProductSummaryResponse(
-                        prod.getId(),
-                        prod.getName(),
-                        prod.getUrlImage(),
-                        prod.getBrand(),
-                        prod.getModel());
-
-                return new OrderItemResponse(
-                        item.getId(),
-                        item.getQuantity(),
-                        item.getPriceAtPurchase(),
-                        productSummary);
-            }).toList();
-
-            return new PaymentResponse(
-                    payment.getId(),
-                    payment.getAmount(),
-                    payment.getAddress(),
-                    payment.getCreatedAt(),
-                    itemsResponse);
+        return payments.stream().map(item -> {
+            return new PaymentSummary(
+                    item.getId(),
+                    item.getAmount(),
+                    item.getAddress(),
+                    item.getCreatedAt());
         }).toList();
+
+    }
+
+    public PaymentResponse getPaymentDetailById(String token, Long paymentId) {
+        Long userId = Long.parseLong(jwtService.getUserIdFromToken(token));
+
+        Optional<Payment> optionalPayment = paymentRepository.findByIdAndUserId(paymentId, userId);
+
+        if (optionalPayment.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "El pago no se encontro");
+        }
+
+        List<OrderItemResponse> itemsResponse = optionalPayment.get().getItems().stream().map(item -> {
+            Product prod = item.getProduct();
+
+            ProductSummaryResponse productSummary = new ProductSummaryResponse(
+                    prod.getId(),
+                    prod.getName(),
+                    prod.getUrlImage(),
+                    prod.getBrand(),
+                    prod.getModel());
+
+            return new OrderItemResponse(
+                    item.getId(),
+                    item.getQuantity(),
+                    item.getPriceAtPurchase(),
+                    productSummary);
+        }).toList();
+
+        return new PaymentResponse(
+                optionalPayment.get().getId(),
+                optionalPayment.get().getAmount(),
+                optionalPayment.get().getAddress(),
+                optionalPayment.get().getCreatedAt(),
+                itemsResponse);
 
     }
 
