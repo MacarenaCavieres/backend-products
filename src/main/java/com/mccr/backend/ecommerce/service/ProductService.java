@@ -18,6 +18,12 @@ public class ProductService {
 
     private final ProductRepository productRepository;
 
+    /*
+     * Tests:
+     * Debe guardar correctamente un producto y devolverlo
+     * Debe lanzar ResponseStatusException cuando el repositorio devuelve un
+     * producto sin id
+     */
     public Product createProduct(Product product) {
 
         final Product newProduct = productRepository.save(product);
@@ -30,16 +36,33 @@ public class ProductService {
         return newProduct;
     }
 
+    /*
+     * Tests:
+     * Debe devolver todos los productos existentes.
+     * Debe devolver una lista vacía cuando no existen productos.
+     */
     public List<Product> getAllProducts() {
         return productRepository.findAll();
     }
 
+    /*
+     * Tests:
+     * Debe devolver el producto cuando existe.
+     * Debe lanzar ResponseStatusException cuando el producto no existe.
+     */
     public Product findByProductId(Long id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Error: Producto no encontrado"));
     }
 
+    /*
+     * Tests:
+     * Debe actualizar correctamente todos los campos del producto.
+     * Debe actualizar la fecha updatedAt.
+     * Debe lanzar ResponseStatusException cuando el producto no existe.
+     * Debe guardar el producto actualizado en el repositorio.
+     */
     public Product updateProduct(Long id, Product updatedData) {
         final Product product = findByProductId(id);
 
@@ -59,6 +82,12 @@ public class ProductService {
         return product;
     }
 
+    /*
+     * Tests:
+     * Debe eliminar el producto cuando existe.
+     * Debe lanzar ResponseStatusException cuando el producto no existe.
+     * Debe llamar a deleteById().
+     */
     public String removeProduct(Long id) {
         if (!productRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,

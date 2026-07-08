@@ -34,6 +34,21 @@ public class PaymentService {
     private final ProductRepository productRepository;
     private final JwtService jwtService;
 
+    /*
+     * Tests
+     * Debe lanzar ResponseStatusException cuando el usuario obtenido desde el token
+     * no existe.
+     * Debe lanzar ResponseStatusException cuando alguno de los productos no existe.
+     * Debe lanzar ResponseStatusException cuando el stock de un producto es
+     * insuficiente.
+     * Debe descontar correctamente el stock de los productos comprados.
+     * Debe crear un OrderItem por cada producto del carrito.
+     * Debe asociar cada OrderItem al Payment.
+     * Debe guardar el pago en el repositorio.
+     * Debe devolver un PaymentResponse con los datos del pago.
+     * Debe devolver un PaymentResponse con la lista de productos comprados.
+     * Debe obtener el id del usuario desde el token.
+     */
     @SuppressWarnings("null")
     public PaymentResponse createPayment(String token, PaymentRequest newPayment) {
         Long userId = Long.parseLong(jwtService.getUserIdFromToken(token));
@@ -108,6 +123,13 @@ public class PaymentService {
 
     }
 
+    /*
+     * Tests
+     * Debe obtener el id del usuario desde el token.
+     * Debe devolver todos los pagos del usuario.
+     * Debe devolver una lista vacía cuando el usuario no tiene pagos.
+     * Debe mapear correctamente los pagos a PaymentSummary.
+     */
     public List<PaymentSummary> getAllPayments(String token) {
         Long userId = Long.parseLong(jwtService.getUserIdFromToken(token));
 
@@ -123,6 +145,14 @@ public class PaymentService {
 
     }
 
+    /*
+     * Tests
+     * Debe obtener el id del usuario desde el token.
+     * Debe lanzar ResponseStatusException cuando el pago no existe para el usuario.
+     * Debe devolver el detalle del pago cuando existe.
+     * Debe incluir la lista de productos comprados en el PaymentResponse.
+     * Debe mapear correctamente los OrderItem a OrderItemResponse.
+     */
     public PaymentResponse getPaymentDetailById(String token, Long paymentId) {
         Long userId = Long.parseLong(jwtService.getUserIdFromToken(token));
 

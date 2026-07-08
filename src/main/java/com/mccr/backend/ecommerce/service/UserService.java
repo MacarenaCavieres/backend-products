@@ -38,12 +38,22 @@ public class UserService {
     private final JwtService jwtService;
     private final EmailService emailService;
 
+    /*
+     * Tests:
+     * Debe hashear la contraseña antes de guardar el usuario.
+     * Debe lanzar ResponseStatusException cuando el email ya está registrado.
+     * Debe lanzar ResponseStatusException cuando no existe el rol ROLE_USER.
+     * Debe asignar el rol ROLE_USER al nuevo usuario.
+     * Debe guardar correctamente el usuario en el repositorio.
+     * Debe devolver un UserResponse con los datos esperados.
+     */
     @SuppressWarnings("null")
     @Transactional
     public UserResponse register(User user) {
-        userRepository.findByEmail(user.getEmail().trim())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Error: Usuario ya registrado"));
+        Optional<User> optionalUser = userRepository.findByEmail(user.getEmail().trim());
+        if (optionalUser.isPresent()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Error: Usuario ya registrado");
+        }
 
         user.setPassword(hashEncoder.encode(user.getPassword()));
         Role roleFound = roleRepository.findByRole(RoleList.ROLE_USER)
@@ -60,6 +70,14 @@ public class UserService {
 
     }
 
+    /*
+     * Tests:
+     * Debe lanzar ResponseStatusException cuando el usuario no existe.
+     * Debe lanzar ResponseStatusException cuando la contraseña es incorrecta.
+     * Debe generar correctamente el token JWT.
+     * Debe devolver la lista de roles del usuario.
+     * Debe devolver un LoginResponse con la información correcta.
+     */
     @SuppressWarnings("null")
     @Transactional
     public LoginResponse login(LoginRequest loginRequest) {
@@ -81,6 +99,11 @@ public class UserService {
 
     }
 
+    /*
+     * Tests:
+     * Debe devolver todos los usuarios existentes
+     * Debe devolver una lista vacía cuando no existan usuarios
+     */
     @SuppressWarnings("null")
     @Transactional
     public List<UserResponse> getAllUsers() {
@@ -93,6 +116,11 @@ public class UserService {
 
     }
 
+    /*
+     * Tests:
+     * Debe devolver el usuario cuando existe.
+     * Debe lanzar ResponseStatusException cuando el usuario no existe.
+     */
     @SuppressWarnings("null")
     @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
     @Transactional
@@ -102,11 +130,24 @@ public class UserService {
                         "Usuario no encontrado"));
 
         return new UserResponse(user.getId(), user.getName(), user.getLastname(),
-                user.getLastname(), user.getRoles().stream().map(Role::getRole).toList(),
+                user.getEmail(), user.getRoles().stream().map(Role::getRole).toList(),
                 user.getCreatedAt(),
                 user.getUpdatedAt());
     }
 
+    /*
+     * Tests:
+     * Debe lanzar ResponseStatusException cuando el usuario no existe.
+     * Debe lanzar ResponseStatusException cuando el nuevo email ya está registrado.
+     * Debe actualizar correctamente el nombre y apellido.
+     * Debe actualizar el email cuando el nuevo email no está registrado.
+     * No debe consultar si el email cambió cuando el email es el mismo.
+     * Debe hashear la nueva contraseña cuando esta cambia.
+     * No debe modificar la contraseña cuando viene vacía o nula.
+     * Debe actualizar la fecha updatedAt.
+     * Debe guardar correctamente el usuario actualizado.
+     * Debe devolver un UserResponse con los datos actualizados.
+     */
     @SuppressWarnings("null")
     @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
     @Transactional
@@ -144,6 +185,12 @@ public class UserService {
 
     }
 
+    /*
+     * Tests:
+     * Debe eliminar el usuario cuando existe.
+     * Debe lanzar ResponseStatusException cuando el usuario no existe.
+     * Debe llamar a deleteById().
+     */
     @PreAuthorize("hasRole('ADMIN')")
     @Transactional
     public void removeUser(Long id) {
@@ -155,6 +202,17 @@ public class UserService {
 
     }
 
+    /*
+     * Tests:
+     * Debe lanzar ResponseStatusException cuando el usuario no existe.
+     * Debe lanzar ResponseStatusException cuando el rol ROLE_SUPERVISOR no existe.
+     * Debe lanzar ResponseStatusException cuando el usuario ya tiene asignado el
+     * rol.
+     * Debe agregar el rol ROLE_SUPERVISOR al usuario.
+     * Debe actualizar updatedAt.
+     * Debe guardar el usuario actualizado.
+     * Debe devolver un UserResponse con el nuevo rol asignado.
+     */
     @SuppressWarnings("null")
     @Transactional
     public UserResponse addSupervisorRole(Long id) {
@@ -181,6 +239,14 @@ public class UserService {
 
     }
 
+    /*
+     * Tests:
+     * Debe obtener el id del usuario a partir del token.
+     * Debe devolver el usuario cuando el token corresponde a un usuario existente.
+     * Debe lanzar ResponseStatusException cuando el usuario obtenido desde el token
+     * no existe.
+     * Debe devolver correctamente el UserResponse.
+     */
     @SuppressWarnings("null")
     @Transactional
     public UserResponse getUserByToken(String token) {
@@ -196,6 +262,16 @@ public class UserService {
 
     }
 
+    /*
+     * Tests:
+     * Debe lanzar ResponseStatusException cuando el usuario no existe.
+     * Debe eliminar los tokens anteriores del usuario.
+     * Debe generar un nuevo token de recuperación.
+     * Debe crear un PasswordResetToken con fecha de expiración.
+     * Debe guardar el nuevo token en la base de datos.
+     * Debe enviar el correo electrónico de recuperación.
+     * Debe utilizar los roles del usuario para generar el token.
+     */
     @Transactional
     public void requestPasswordReset(ResetPasswordRequest resetPasswordRequest) {
         User user = userRepository.findByEmail(resetPasswordRequest.email())
@@ -219,6 +295,20 @@ public class UserService {
 
     }
 
+    /*
+     * Tests:
+     * Debe lanzar ResponseStatusException cuando el JWT está expirado o es
+     * inválido.
+     * Debe lanzar ResponseStatusException cuando el token no existe.
+     * Debe lanzar ResponseStatusException cuando el token ya fue utilizado.
+     * Debe lanzar ResponseStatusException cuando el usuario asociado al token no
+     * existe.
+     * Debe actualizar la contraseña del usuario.
+     * Debe guardar el usuario con la nueva contraseña.
+     * Debe marcar el token como utilizado.
+     * Debe guardar el token actualizado.
+     * Debe devolver el mensaje "Contraseña restablecida".
+     */
     @Transactional
     public String recoveryPassword(RecoveryPassword recoveryInfo) {
 

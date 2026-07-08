@@ -1,5 +1,6 @@
 package com.mccr.backend.ecommerce.service;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
@@ -11,8 +12,23 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class EmailService {
 
+    @Value("${frontend.url}")
+    private String frontendUrl;
+
     private final JavaMailSender mailSender;
 
+    /*
+     * Tests:
+     * Debe crear un mensaje de correo.
+     * Debe configurar correctamente el remitente.
+     * Debe configurar correctamente el destinatario.
+     * Debe configurar correctamente el asunto del correo.
+     * Debe construir la URL de recuperación con el token recibido.
+     * Debe generar el contenido HTML del correo.
+     * Debe enviar el correo mediante JavaMailSender.
+     * Debe manejar correctamente cualquier excepción producida durante el envío del
+     * correo.
+     */
     public void sendPasswordResetEmail(String toEmail, String token) {
         MimeMessage message = mailSender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(message, "utf-8");
@@ -24,7 +40,7 @@ public class EmailService {
             helper.setTo(toEmail);
             helper.setSubject("Ecommerce Products");
 
-            String resetUrl = "http://localhost:5173/auth/reset-password?token=" + token;
+            String resetUrl = frontendUrl + "/auth/reset-password?token=" + token;
 
             String htmlContent = buildResetPasswordEmailHtml(resetUrl);
 
