@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -145,6 +146,7 @@ public class ProductServiceTest {
     void shouldUpdateProduct() {
         Product existingProduct = buildProduct();
         existingProduct.setId(1L);
+        existingProduct.setUpdatedAt(Instant.now());
 
         Product newData = new Product();
 
@@ -179,9 +181,17 @@ public class ProductServiceTest {
         assertEquals("EOS R50 18-45 IS STM", result.getModel());
         assertEquals("Vietnam", result.getOrigin());
         assertEquals("5 años", result.getUsefulLife());
+        assertEquals(existingProduct.getUpdatedAt(), result.getUpdatedAt());
         verify(productRepository).findById(1L);
         verify(productRepository).save(existingProduct);
+    }
 
+    @Test
+    @DisplayName("Should throw exception when the product in updateProduct doesn't exist")
+    void shouldThrowExceptionMissingProductId() {
+        Product prod = buildProduct();
+
+        when(productRepository.findById(1L)).thenReturn(Optional.of(prod));
     }
 
     private Product buildProduct() {
