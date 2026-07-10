@@ -133,14 +133,6 @@ public class ProductServiceTest {
         verify(productRepository).findById(1L);
     }
 
-    /*
-     * Tests:
-     * Debe actualizar correctamente todos los campos del producto.
-     * Debe actualizar la fecha updatedAt.
-     * Debe lanzar ResponseStatusException cuando el producto no existe.
-     * Debe guardar el producto actualizado en el repositorio.
-     */
-
     @Test
     @DisplayName("Should update all product fields")
     void shouldUpdateProduct() {
@@ -191,7 +183,40 @@ public class ProductServiceTest {
     void shouldThrowExceptionMissingProductId() {
         Product prod = buildProduct();
 
-        when(productRepository.findById(1L)).thenReturn(Optional.of(prod));
+        when(productRepository.findById(1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> productService.updateProduct(1L, prod));
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Error: Producto no encontrado", ex.getReason());
+
+        verify(productRepository).findById(1L);
+    }
+
+    @Test
+    @DisplayName("Should delete the product when exists")
+    void shouldDeleteTheProduct() {
+
+        when(productRepository.existsById(1L)).thenReturn(true);
+
+        String message = productService.removeProduct(1L);
+
+        assertEquals("Producto eliminado", message);
+        verify(productRepository).deleteById(1L);
+
+    }
+
+    @Test
+    @DisplayName("Should delete the product when exists")
+    void shouldThrowExceptionByExistsById() {
+
+        when(productRepository.existsById(1L)).thenReturn(false);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> productService.removeProduct(1L));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+
     }
 
     private Product buildProduct() {

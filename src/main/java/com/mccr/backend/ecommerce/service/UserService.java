@@ -31,311 +31,294 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class UserService {
 
-    private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
-    private final PasswordResetRepository passwordResetRepository;
-    private final HashEncoder hashEncoder;
-    private final JwtService jwtService;
-    private final EmailService emailService;
+	private final UserRepository userRepository;
+	private final RoleRepository roleRepository;
+	private final PasswordResetRepository passwordResetRepository;
+	private final HashEncoder hashEncoder;
+	private final JwtService jwtService;
+	private final EmailService emailService;
 
-    /*
-     * Tests:
-     * Debe hashear la contraseña antes de guardar el usuario.
-     * Debe lanzar ResponseStatusException cuando el email ya está registrado.
-     * Debe lanzar ResponseStatusException cuando no existe el rol ROLE_USER.
-     * Debe asignar el rol ROLE_USER al nuevo usuario.
-     * Debe guardar correctamente el usuario en el repositorio.
-     * Debe devolver un UserResponse con los datos esperados.
-     */
-    @SuppressWarnings("null")
-    @Transactional
-    public UserResponse register(User user) {
-        Optional<User> optionalUser = userRepository.findByEmail(user.getEmail().trim());
-        if (optionalUser.isPresent()) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Error: Usuario ya registrado");
-        }
+	@SuppressWarnings("null")
+	@Transactional
+	public UserResponse register(User user) {
+		Optional<User> optionalUser = userRepository.findByEmail(user.getEmail().trim());
+		if (optionalUser.isPresent()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Error: Usuario ya registrado");
+		}
 
-        user.setPassword(hashEncoder.encode(user.getPassword()));
-        Role roleFound = roleRepository.findByRole(RoleList.ROLE_USER)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                        "Error: El rol ROLE_USER no existe en la base de datos"));
+		user.setPassword(hashEncoder.encode(user.getPassword()));
+		Role roleFound = roleRepository.findByRole(RoleList.ROLE_USER)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+						"Error: El rol ROLE_USER no existe en la base de datos"));
 
-        user.setRoles(List.of(roleFound));
+		user.setRoles(List.of(roleFound));
 
-        User userCreated = userRepository.save(user);
+		User userCreated = userRepository.save(user);
 
-        return new UserResponse(userCreated.getId(), userCreated.getName(), userCreated.getLastname(),
-                userCreated.getEmail(), userCreated.getRoles().stream().map(Role::getRole).toList(),
-                userCreated.getCreatedAt(), userCreated.getUpdatedAt());
+		return new UserResponse(userCreated.getId(), userCreated.getName(), userCreated.getLastname(),
+				userCreated.getEmail(), userCreated.getRoles().stream().map(Role::getRole).toList(),
+				userCreated.getCreatedAt(), userCreated.getUpdatedAt());
 
-    }
+	}
 
-    /*
-     * Tests:
-     * Debe lanzar ResponseStatusException cuando el usuario no existe.
-     * Debe lanzar ResponseStatusException cuando la contraseña es incorrecta.
-     * Debe generar correctamente el token JWT.
-     * Debe devolver la lista de roles del usuario.
-     * Debe devolver un LoginResponse con la información correcta.
-     */
-    @SuppressWarnings("null")
-    @Transactional
-    public LoginResponse login(LoginRequest loginRequest) {
-        User userFound = userRepository.findByEmail(loginRequest.email().trim())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Error: Usuario no registrado"));
+	@SuppressWarnings("null")
+	@Transactional
+	public LoginResponse login(LoginRequest loginRequest) {
+		User userFound = userRepository.findByEmail(loginRequest.email().trim())
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+						"Error: Usuario no registrado"));
 
-        if (!hashEncoder.matches(loginRequest.password(), userFound.getPassword())) {
-            throw new ResponseStatusException(HttpStatus.NOT_ACCEPTABLE,
-                    "Error: Credenciales inválidas");
-        }
+		if (!hashEncoder.matches(loginRequest.password(), userFound.getPassword())) {
+			throw new ResponseStatusException(HttpStatus.NOT_ACCEPTABLE,
+					"Error: Credenciales inválidas");
+		}
 
-        String token = jwtService.generateAccessToken(userFound.getId().toString(), userFound.getRoles());
-        List<Role> roles = userFound.getRoles();
-        List<RoleList> roleNames = roles.stream().map(Role::getRole).toList();
+		String token = jwtService.generateAccessToken(userFound.getId().toString(), userFound.getRoles());
+		List<Role> roles = userFound.getRoles();
+		List<RoleList> roleNames = roles.stream().map(Role::getRole).toList();
 
-        return new LoginResponse(userFound.getName(), userFound.getLastname(), userFound.getEmail(),
-                token, roleNames);
+		return new LoginResponse(userFound.getName(), userFound.getLastname(), userFound.getEmail(),
+				token, roleNames);
 
-    }
+	}
 
-    /*
-     * Tests:
-     * Debe devolver todos los usuarios existentes
-     * Debe devolver una lista vacía cuando no existan usuarios
-     */
-    @SuppressWarnings("null")
-    @Transactional
-    public List<UserResponse> getAllUsers() {
-        List<User> usersRaw = userRepository.findAll();
+	/*
+	 * Tests:
+	 * Debe devolver todos los usuarios existentes
+	 * Debe devolver una lista vacía cuando no existan usuarios
+	 */
+	@SuppressWarnings("null")
+	@Transactional
+	public List<UserResponse> getAllUsers() {
+		List<User> usersRaw = userRepository.findAll();
 
-        return usersRaw.stream().map(u -> new UserResponse(u.getId(), u.getName(), u.getLastname(),
-                u.getEmail(), u.getRoles().stream().map(Role::getRole).toList(), u.getCreatedAt(),
-                u.getUpdatedAt()))
-                .collect(Collectors.toList());
+		return usersRaw.stream().map(u -> new UserResponse(u.getId(), u.getName(), u.getLastname(),
+				u.getEmail(), u.getRoles().stream().map(Role::getRole).toList(), u.getCreatedAt(),
+				u.getUpdatedAt()))
+				.collect(Collectors.toList());
 
-    }
+	}
 
-    /*
-     * Tests:
-     * Debe devolver el usuario cuando existe.
-     * Debe lanzar ResponseStatusException cuando el usuario no existe.
-     */
-    @SuppressWarnings("null")
-    @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
-    @Transactional
-    public UserResponse getUserById(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Usuario no encontrado"));
+	/*
+	 * Tests:
+	 * Debe devolver el usuario cuando existe.
+	 * Debe lanzar ResponseStatusException cuando el usuario no existe.
+	 */
+	@SuppressWarnings("null")
+	@PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
+	@Transactional
+	public UserResponse getUserById(Long id) {
+		User user = userRepository.findById(id)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+						"Usuario no encontrado"));
 
-        return new UserResponse(user.getId(), user.getName(), user.getLastname(),
-                user.getEmail(), user.getRoles().stream().map(Role::getRole).toList(),
-                user.getCreatedAt(),
-                user.getUpdatedAt());
-    }
+		return new UserResponse(user.getId(), user.getName(), user.getLastname(),
+				user.getEmail(), user.getRoles().stream().map(Role::getRole).toList(),
+				user.getCreatedAt(),
+				user.getUpdatedAt());
+	}
 
-    /*
-     * Tests:
-     * Debe lanzar ResponseStatusException cuando el usuario no existe.
-     * Debe lanzar ResponseStatusException cuando el nuevo email ya está registrado.
-     * Debe actualizar correctamente el nombre y apellido.
-     * Debe actualizar el email cuando el nuevo email no está registrado.
-     * No debe consultar si el email cambió cuando el email es el mismo.
-     * Debe hashear la nueva contraseña cuando esta cambia.
-     * No debe modificar la contraseña cuando viene vacía o nula.
-     * Debe actualizar la fecha updatedAt.
-     * Debe guardar correctamente el usuario actualizado.
-     * Debe devolver un UserResponse con los datos actualizados.
-     */
-    @SuppressWarnings("null")
-    @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
-    @Transactional
-    public UserResponse updateUser(Long id, User user) {
-        User userById = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Usuario no encontrado"));
+	/*
+	 * Tests:
+	 * Debe lanzar ResponseStatusException cuando el usuario no existe.
+	 * Debe lanzar ResponseStatusException cuando el nuevo email ya está registrado.
+	 * Debe actualizar correctamente el nombre y apellido.
+	 * Debe actualizar el email cuando el nuevo email no está registrado.
+	 * No debe consultar si el email cambió cuando el email es el mismo.
+	 * Debe hashear la nueva contraseña cuando esta cambia.
+	 * No debe modificar la contraseña cuando viene vacía o nula.
+	 * Debe actualizar la fecha updatedAt.
+	 * Debe guardar correctamente el usuario actualizado.
+	 * Debe devolver un UserResponse con los datos actualizados.
+	 */
+	@SuppressWarnings("null")
+	@PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
+	@Transactional
+	public UserResponse updateUser(Long id, User user) {
+		User userById = userRepository.findById(id)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+						"Usuario no encontrado"));
 
-        if (!userById.getEmail().equals(user.getEmail())) {
-            Optional<User> userByEmail = userRepository.findByEmail(user.getEmail());
+		if (!userById.getEmail().equals(user.getEmail())) {
+			Optional<User> userByEmail = userRepository.findByEmail(user.getEmail());
 
-            if (userByEmail.isPresent()) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
-                        "Usuario con ese email ya registrado");
-            }
-            userById.setEmail(user.getEmail());
+			if (userByEmail.isPresent()) {
+				throw new ResponseStatusException(HttpStatus.CONFLICT,
+						"Usuario con ese email ya registrado");
+			}
+			userById.setEmail(user.getEmail());
 
-        }
+		}
 
-        userById.setName(user.getName());
-        userById.setLastname(user.getLastname());
+		userById.setName(user.getName());
+		userById.setLastname(user.getLastname());
 
-        if (user.getPassword() != null && !user.getPassword().trim().isEmpty()
-                && !hashEncoder.matches(user.getPassword(), userById.getPassword())) {
-            userById.setPassword(hashEncoder.encode(user.getPassword()));
-        }
+		if (user.getPassword() != null && !user.getPassword().trim().isEmpty()
+				&& !hashEncoder.matches(user.getPassword(), userById.getPassword())) {
+			userById.setPassword(hashEncoder.encode(user.getPassword()));
+		}
 
-        userById.setUpdatedAt(Instant.now());
+		userById.setUpdatedAt(Instant.now());
 
-        User userUpdated = userRepository.save(userById);
+		User userUpdated = userRepository.save(userById);
 
-        return new UserResponse(userUpdated.getId(), userUpdated.getName(), userUpdated.getLastname(),
-                userUpdated.getEmail(), userUpdated.getRoles().stream().map(Role::getRole).toList(),
-                userUpdated.getCreatedAt(), userUpdated.getUpdatedAt());
+		return new UserResponse(userUpdated.getId(), userUpdated.getName(), userUpdated.getLastname(),
+				userUpdated.getEmail(), userUpdated.getRoles().stream().map(Role::getRole).toList(),
+				userUpdated.getCreatedAt(), userUpdated.getUpdatedAt());
 
-    }
+	}
 
-    /*
-     * Tests:
-     * Debe eliminar el usuario cuando existe.
-     * Debe lanzar ResponseStatusException cuando el usuario no existe.
-     * Debe llamar a deleteById().
-     */
-    @PreAuthorize("hasRole('ADMIN')")
-    @Transactional
-    public void removeUser(Long id) {
-        userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Usuario no encontrado"));
+	/*
+	 * Tests:
+	 * Debe eliminar el usuario cuando existe.
+	 * Debe lanzar ResponseStatusException cuando el usuario no existe.
+	 * Debe llamar a deleteById().
+	 */
+	@PreAuthorize("hasRole('ADMIN')")
+	@Transactional
+	public void removeUser(Long id) {
+		userRepository.findById(id)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+						"Usuario no encontrado"));
 
-        userRepository.deleteById(id);
+		userRepository.deleteById(id);
 
-    }
+	}
 
-    /*
-     * Tests:
-     * Debe lanzar ResponseStatusException cuando el usuario no existe.
-     * Debe lanzar ResponseStatusException cuando el rol ROLE_SUPERVISOR no existe.
-     * Debe lanzar ResponseStatusException cuando el usuario ya tiene asignado el
-     * rol.
-     * Debe agregar el rol ROLE_SUPERVISOR al usuario.
-     * Debe actualizar updatedAt.
-     * Debe guardar el usuario actualizado.
-     * Debe devolver un UserResponse con el nuevo rol asignado.
-     */
-    @SuppressWarnings("null")
-    @Transactional
-    public UserResponse addSupervisorRole(Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Usuario no encontrado"));
+	/*
+	 * Tests:
+	 * Debe lanzar ResponseStatusException cuando el usuario no existe.
+	 * Debe lanzar ResponseStatusException cuando el rol ROLE_SUPERVISOR no existe.
+	 * Debe lanzar ResponseStatusException cuando el usuario ya tiene asignado el
+	 * rol.
+	 * Debe agregar el rol ROLE_SUPERVISOR al usuario.
+	 * Debe actualizar updatedAt.
+	 * Debe guardar el usuario actualizado.
+	 * Debe devolver un UserResponse con el nuevo rol asignado.
+	 */
+	@SuppressWarnings("null")
+	@Transactional
+	public UserResponse addSupervisorRole(Long id) {
+		User user = userRepository.findById(id)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+						"Usuario no encontrado"));
 
-        Role supervisorRole = roleRepository.findByRole(RoleList.ROLE_SUPERVISOR)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "El rol ROLE_SUPERVISOR no está creado en la base de datos"));
+		Role supervisorRole = roleRepository.findByRole(RoleList.ROLE_SUPERVISOR)
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+						"El rol ROLE_SUPERVISOR no está creado en la base de datos"));
 
-        if (user.getRoles().contains(supervisorRole)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Usuario con ese rol ya asignado");
-        }
+		if (user.getRoles().contains(supervisorRole)) {
+			throw new ResponseStatusException(HttpStatus.CONFLICT, "Usuario con ese rol ya asignado");
+		}
 
-        user.getRoles().add(supervisorRole);
-        user.setUpdatedAt(Instant.now());
+		user.getRoles().add(supervisorRole);
+		user.setUpdatedAt(Instant.now());
 
-        User userUpdated = userRepository.save(user);
+		User userUpdated = userRepository.save(user);
 
-        return new UserResponse(userUpdated.getId(), userUpdated.getName(), userUpdated.getLastname(),
-                userUpdated.getEmail(), userUpdated.getRoles().stream().map(Role::getRole).toList(),
-                userUpdated.getCreatedAt(), userUpdated.getUpdatedAt());
+		return new UserResponse(userUpdated.getId(), userUpdated.getName(), userUpdated.getLastname(),
+				userUpdated.getEmail(), userUpdated.getRoles().stream().map(Role::getRole).toList(),
+				userUpdated.getCreatedAt(), userUpdated.getUpdatedAt());
 
-    }
+	}
 
-    /*
-     * Tests:
-     * Debe obtener el id del usuario a partir del token.
-     * Debe devolver el usuario cuando el token corresponde a un usuario existente.
-     * Debe lanzar ResponseStatusException cuando el usuario obtenido desde el token
-     * no existe.
-     * Debe devolver correctamente el UserResponse.
-     */
-    @SuppressWarnings("null")
-    @Transactional
-    public UserResponse getUserByToken(String token) {
-        String id = jwtService.getUserIdFromToken(token);
-        User user = userRepository.findById(Long.parseLong(id))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Usuario no encontrado"));
+	/*
+	 * Tests:
+	 * Debe obtener el id del usuario a partir del token.
+	 * Debe devolver el usuario cuando el token corresponde a un usuario existente.
+	 * Debe lanzar ResponseStatusException cuando el usuario obtenido desde el token
+	 * no existe.
+	 * Debe devolver correctamente el UserResponse.
+	 */
+	@SuppressWarnings("null")
+	@Transactional
+	public UserResponse getUserByToken(String token) {
+		String id = jwtService.getUserIdFromToken(token);
+		User user = userRepository.findById(Long.parseLong(id))
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+						"Usuario no encontrado"));
 
-        return new UserResponse(user.getId(), user.getName(), user.getLastname(),
-                user.getEmail(), user.getRoles().stream().map(Role::getRole).toList(),
-                user.getCreatedAt(),
-                user.getUpdatedAt());
+		return new UserResponse(user.getId(), user.getName(), user.getLastname(),
+				user.getEmail(), user.getRoles().stream().map(Role::getRole).toList(),
+				user.getCreatedAt(),
+				user.getUpdatedAt());
 
-    }
+	}
 
-    /*
-     * Tests:
-     * Debe lanzar ResponseStatusException cuando el usuario no existe.
-     * Debe eliminar los tokens anteriores del usuario.
-     * Debe generar un nuevo token de recuperación.
-     * Debe crear un PasswordResetToken con fecha de expiración.
-     * Debe guardar el nuevo token en la base de datos.
-     * Debe enviar el correo electrónico de recuperación.
-     * Debe utilizar los roles del usuario para generar el token.
-     */
-    @Transactional
-    public void requestPasswordReset(ResetPasswordRequest resetPasswordRequest) {
-        User user = userRepository.findByEmail(resetPasswordRequest.email())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Usuario no encontrado"));
+	/*
+	 * Tests:
+	 * Debe lanzar ResponseStatusException cuando el usuario no existe.
+	 * Debe eliminar los tokens anteriores del usuario.
+	 * Debe generar un nuevo token de recuperación.
+	 * Debe crear un PasswordResetToken con fecha de expiración.
+	 * Debe guardar el nuevo token en la base de datos.
+	 * Debe enviar el correo electrónico de recuperación.
+	 * Debe utilizar los roles del usuario para generar el token.
+	 */
+	@Transactional
+	public void requestPasswordReset(ResetPasswordRequest resetPasswordRequest) {
+		User user = userRepository.findByEmail(resetPasswordRequest.email())
+				.orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+						"Usuario no encontrado"));
 
-        passwordResetRepository.deleteByUserId(user.getId());
+		passwordResetRepository.deleteByUserId(user.getId());
 
-        List<Role> rolesList = user.getRoles();
+		List<Role> rolesList = user.getRoles();
 
-        String newResetPasswordToken = jwtService.generateResetPasswordToken(resetPasswordRequest.email(),
-                rolesList);
-        Long expiration = jwtService.expirationTokenResetTime;
-        Instant expiresAt = Instant.now().plusMillis(expiration);
+		String newResetPasswordToken = jwtService.generateResetPasswordToken(resetPasswordRequest.email(),
+				rolesList);
+		Long expiration = jwtService.expirationTokenResetTime;
+		Instant expiresAt = Instant.now().plusMillis(expiration);
 
-        PasswordResetToken resetToken = new PasswordResetToken(newResetPasswordToken, user.getId(), expiresAt);
+		PasswordResetToken resetToken = new PasswordResetToken(newResetPasswordToken, user.getId(), expiresAt);
 
-        passwordResetRepository.save(resetToken);
+		passwordResetRepository.save(resetToken);
 
-        emailService.sendPasswordResetEmail(user.getEmail(), newResetPasswordToken);
+		emailService.sendPasswordResetEmail(user.getEmail(), newResetPasswordToken);
 
-    }
+	}
 
-    /*
-     * Tests:
-     * Debe lanzar ResponseStatusException cuando el JWT está expirado o es
-     * inválido.
-     * Debe lanzar ResponseStatusException cuando el token no existe.
-     * Debe lanzar ResponseStatusException cuando el token ya fue utilizado.
-     * Debe lanzar ResponseStatusException cuando el usuario asociado al token no
-     * existe.
-     * Debe actualizar la contraseña del usuario.
-     * Debe guardar el usuario con la nueva contraseña.
-     * Debe marcar el token como utilizado.
-     * Debe guardar el token actualizado.
-     * Debe devolver el mensaje "Contraseña restablecida".
-     */
-    @Transactional
-    public String recoveryPassword(RecoveryPassword recoveryInfo) {
+	/*
+	 * Tests:
+	 * Debe lanzar ResponseStatusException cuando el JWT está expirado o es
+	 * inválido.
+	 * Debe lanzar ResponseStatusException cuando el token no existe.
+	 * Debe lanzar ResponseStatusException cuando el token ya fue utilizado.
+	 * Debe lanzar ResponseStatusException cuando el usuario asociado al token no
+	 * existe.
+	 * Debe actualizar la contraseña del usuario.
+	 * Debe guardar el usuario con la nueva contraseña.
+	 * Debe marcar el token como utilizado.
+	 * Debe guardar el token actualizado.
+	 * Debe devolver el mensaje "Contraseña restablecida".
+	 */
+	@Transactional
+	public String recoveryPassword(RecoveryPassword recoveryInfo) {
 
-        boolean isValidToken = jwtService.validateAcessToken(recoveryInfo.token());
+		boolean isValidToken = jwtService.validateAcessToken(recoveryInfo.token());
 
-        if (!isValidToken) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token expirado, solicite otro");
-        }
+		if (!isValidToken) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token expirado, solicite otro");
+		}
 
-        Optional<PasswordResetToken> optionalToken = passwordResetRepository.findByToken(recoveryInfo.token());
+		Optional<PasswordResetToken> optionalToken = passwordResetRepository.findByToken(recoveryInfo.token());
 
-        if (!optionalToken.isPresent() || optionalToken.get().isUsed()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token ya usado, solicite otro");
-        }
+		if (!optionalToken.isPresent() || optionalToken.get().isUsed()) {
+			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token ya usado, solicite otro");
+		}
 
-        User user = userRepository.findById(optionalToken.get().getUserId()).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Usuario asociado a ese token no encontrado"));
+		User user = userRepository.findById(optionalToken.get().getUserId()).orElseThrow(
+				() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+						"Usuario asociado a ese token no encontrado"));
 
-        user.setPassword(hashEncoder.encode(recoveryInfo.password()));
-        userRepository.save(user);
+		user.setPassword(hashEncoder.encode(recoveryInfo.password()));
+		userRepository.save(user);
 
-        optionalToken.get().setUsed(true);
-        passwordResetRepository.save(optionalToken.get());
+		optionalToken.get().setUsed(true);
+		passwordResetRepository.save(optionalToken.get());
 
-        return "Contraseña restablecida";
+		return "Contraseña restablecida";
 
-    }
+	}
 
 }
