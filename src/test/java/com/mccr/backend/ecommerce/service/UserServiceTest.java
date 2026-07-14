@@ -3,6 +3,7 @@ package com.mccr.backend.ecommerce.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -305,7 +306,6 @@ public class UserServiceTest {
         verify(userRepository).findAll();
     }
 
-    @SuppressWarnings("null")
     @Test
     @DisplayName("It should return the user when it exists.")
     void shouldReturnExistingUserById() {
@@ -352,7 +352,7 @@ public class UserServiceTest {
      */
 
     @Test
-    @DisplayName("It should throw a ResponseStatusException when the new email is already registered.")
+    @DisplayName("It should throw a ResponseStatusException when the new email is already registered")
     void shouldThrowExceptionWhenUserEmailIsRegistered() {
         User user = buildUser();
         user.setId(1L);
@@ -390,7 +390,6 @@ public class UserServiceTest {
         newUserInfo.setRoles(List.of(buildRole()));
 
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
-        when(userRepository.findByEmail("lexa@mail.com")).thenReturn(Optional.of(user));
         when(hashEncoder.matches(user.getPassword(), newUserInfo.getPassword())).thenReturn(true);
         when(userRepository.save(user)).thenReturn(user);
 
@@ -400,9 +399,104 @@ public class UserServiceTest {
         assertEquals("Heda", result.lastname());
 
         verify(userRepository).findById(1L);
-        verify(userRepository).findByEmail("lexa@mail.com");
         verify(hashEncoder).matches(user.getPassword(), newUserInfo.getPassword());
-        verify(userRepository).save(newUserInfo);
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("It should update the email address when the new email is not registered")
+    void shouldUpdateEmailWhenTheNewIsNotRegistered() {
+        User user = buildUser();
+        user.setId(1L);
+        user.setRoles(List.of(buildRole()));
+
+        User newUserInfo = buildUser();
+        newUserInfo.setEmail("lexa@email.com");
+        newUserInfo.setRoles(List.of(buildRole()));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail("lexa@email.com")).thenReturn(Optional.empty());
+        when(hashEncoder.matches(user.getPassword(), newUserInfo.getPassword())).thenReturn(true);
+        when(userRepository.save(user)).thenReturn(user);
+
+        UserResponse result = userService.updateUser(1L, newUserInfo);
+
+        assertEquals("lexa@email.com", result.email());
+
+        verify(userRepository).findById(1L);
+        verify(userRepository).findByEmail("lexa@email.com");
+        verify(hashEncoder).matches(user.getPassword(), newUserInfo.getPassword());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("It should not check if the email has changed when the email is the same")
+    void shouldNotCheckWhenEmailIsTheSame() {
+        User user = buildUser();
+        user.setId(1L);
+        user.setRoles(List.of(buildRole()));
+
+        User newUserInfo = buildUser();
+        newUserInfo.setRoles(List.of(buildRole()));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(hashEncoder.matches(user.getPassword(), newUserInfo.getPassword())).thenReturn(true);
+        when(userRepository.save(user)).thenReturn(user);
+
+        userService.updateUser(1L, newUserInfo);
+
+        verify(userRepository).findById(1L);
+        verify(userRepository, never()).findByEmail("lexa@mail.com");
+        verify(hashEncoder).matches(user.getPassword(), newUserInfo.getPassword());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("It should hash the new password when it changes")
+    void shouldHashPassWhenItChanges() {
+        User user = buildUser();
+        user.setId(1L);
+        user.setRoles(List.of(buildRole()));
+
+        User newUserInfo = buildUser();
+        newUserInfo.setPassword("123456789");
+        newUserInfo.setRoles(List.of(buildRole()));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(hashEncoder.matches("123456789", user.getPassword())).thenReturn(false);
+        when(hashEncoder.encode("123456789")).thenReturn("eiufhwes87y45h3n");
+        when(userRepository.save(user)).thenReturn(user);
+
+        userService.updateUser(1L, newUserInfo);
+
+        assertNotEquals("123456789", user.getPassword());
+        assertEquals("eiufhwes87y45h3n", user.getPassword());
+
+        verify(userRepository).findById(1L);
+        verify(hashEncoder).matches("123456789", "12345678");
+        verify(hashEncoder).encode("123456789");
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("It should not modified the pass when it is empty or null")
+    void shouldNotModifiedAnEmptyOrNullPass() {
+        User user = buildUser();
+        user.setId(1L);
+        user.setRoles(List.of(buildRole()));
+
+        User newUserInfo = buildUser();
+        newUserInfo.setPassword("");
+        newUserInfo.setRoles(List.of(buildRole()));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.save(user)).thenReturn(user);
+
+        userService.updateUser(1L, newUserInfo);
+
+        verify(userRepository).findById(1L);
+        verify(hashEncoder, never()).encode("");
+        verify(userRepository).save(user);
     }
 
     private User buildUser() {
