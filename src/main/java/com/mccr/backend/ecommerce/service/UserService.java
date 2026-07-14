@@ -82,11 +82,6 @@ public class UserService {
 
 	}
 
-	/*
-	 * Tests:
-	 * Debe devolver todos los usuarios existentes
-	 * Debe devolver una lista vacía cuando no existan usuarios
-	 */
 	@SuppressWarnings("null")
 	@Transactional
 	public List<UserResponse> getAllUsers() {
@@ -99,11 +94,6 @@ public class UserService {
 
 	}
 
-	/*
-	 * Tests:
-	 * Debe devolver el usuario cuando existe.
-	 * Debe lanzar ResponseStatusException cuando el usuario no existe.
-	 */
 	@SuppressWarnings("null")
 	@PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
 	@Transactional

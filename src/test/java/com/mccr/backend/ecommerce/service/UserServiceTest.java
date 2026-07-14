@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -256,21 +257,19 @@ public class UserServiceTest {
         verify(jwtService).generateAccessToken(u.getId().toString(), u.getRoles());
     }
 
-    /*
-     * Tests:
-     * Debe devolver todos los usuarios existentes
-     * Debe devolver una lista vacía cuando no existan usuarios
-     */
-
+    @SuppressWarnings("null")
     @Test
     @DisplayName("It should return all existing users.")
     void shouldReturnAllUsers() {
-        User u = new User();
+        User u = buildUser();
         u.setId(1L);
-        User u2 = new User();
+        u.setRoles(List.of(buildRole()));
+        User u2 = buildUser();
         u2.setId(3L);
-        User u3 = new User();
+        u2.setRoles(List.of(buildRole()));
+        User u3 = buildUser();
         u3.setId(2L);
+        u3.setRoles(List.of(buildRole()));
 
         List<User> usersList = new ArrayList<>();
         usersList.add(u);
@@ -281,9 +280,129 @@ public class UserServiceTest {
 
         List<UserResponse> response = userService.getAllUsers();
 
-        assertEquals(u.getName(), response.name());
+        List<UserResponse> result = usersList.stream()
+                .map(user -> new UserResponse(user.getId(), user.getName(), user.getLastname(), user.getEmail(),
+                        user.getRoles().stream().map(Role::getRole).toList(), user.getCreatedAt(), user.getUpdatedAt()))
+                .collect(Collectors.toList());
+
+        assertEquals(result, response);
+        assertEquals(result.size(), response.size());
 
         verify(userRepository).findAll();
+    }
+
+    @Test
+    @DisplayName("It should return an empty list when there are no users")
+    void shouldReturnAnEmptyListOfUsers() {
+        List<User> usersList = new ArrayList<>();
+
+        when(userRepository.findAll()).thenReturn(usersList);
+
+        List<UserResponse> users = userService.getAllUsers();
+
+        assertEquals(usersList, users);
+
+        verify(userRepository).findAll();
+    }
+
+    @SuppressWarnings("null")
+    @Test
+    @DisplayName("It should return the user when it exists.")
+    void shouldReturnExistingUserById() {
+        User user = buildUser();
+        user.setId(1L);
+        user.setRoles(List.of(buildRole()));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        UserResponse response = userService.getUserById(1L);
+
+        assertEquals("Alexandra", response.name());
+        assertEquals("Trikru", response.lastname());
+        assertEquals("lexa@mail.com", response.email());
+
+        verify(userRepository).findById(1L);
+    }
+
+    @Test
+    @DisplayName("It should throw a ResponseStatusException when the user does not exist")
+    void shouldThrowExceptionWhenUserIsMissingInFindById() {
+
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> userService.getUserById(1L));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Usuario no encontrado", ex.getReason());
+
+        verify(userRepository).findById(1L);
+    }
+
+    /*
+     * Tests:
+     * Debe lanzar ResponseStatusException cuando el nuevo email ya está registrado.
+     * Debe actualizar correctamente el nombre y apellido.
+     * Debe actualizar el email cuando el nuevo email no está registrado.
+     * No debe consultar si el email cambió cuando el email es el mismo.
+     * Debe hashear la nueva contraseña cuando esta cambia.
+     * No debe modificar la contraseña cuando viene vacía o nula.
+     * Debe actualizar la fecha updatedAt.
+     * Debe guardar correctamente el usuario actualizado.
+     * Debe devolver un UserResponse con los datos actualizados.
+     */
+
+    @Test
+    @DisplayName("It should throw a ResponseStatusException when the new email is already registered.")
+    void shouldThrowExceptionWhenUserEmailIsRegistered() {
+        User user = buildUser();
+        user.setId(1L);
+        user.setRoles(List.of(buildRole()));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail("lexa@email.com")).thenReturn(Optional.of(user));
+
+        User newUserInfo = buildUser();
+        newUserInfo.setId(1L);
+        newUserInfo.setRoles(List.of(buildRole()));
+        newUserInfo.setEmail("lexa@email.com");
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> userService.updateUser(1L, newUserInfo));
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        assertEquals("Usuario con ese email ya registrado", ex.getReason());
+
+        verify(userRepository).findById(1L);
+        verify(userRepository).findByEmail("lexa@email.com");
+    }
+
+    @Test
+    @DisplayName("It should correctly update the first and last name")
+    void shouldUpdateNameAndLastnameCorrectly() {
+        User user = buildUser();
+        user.setId(1L);
+        user.setRoles(List.of(buildRole()));
+
+        User newUserInfo = buildUser();
+        newUserInfo.setId(1L);
+        newUserInfo.setName("Lexa");
+        newUserInfo.setLastname("Heda");
+        newUserInfo.setRoles(List.of(buildRole()));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(userRepository.findByEmail("lexa@mail.com")).thenReturn(Optional.of(user));
+        when(hashEncoder.matches(user.getPassword(), newUserInfo.getPassword())).thenReturn(true);
+        when(userRepository.save(user)).thenReturn(user);
+
+        UserResponse result = userService.updateUser(1L, newUserInfo);
+
+        assertEquals("Lexa", result.name());
+        assertEquals("Heda", result.lastname());
+
+        verify(userRepository).findById(1L);
+        verify(userRepository).findByEmail("lexa@mail.com");
+        verify(hashEncoder).matches(user.getPassword(), newUserInfo.getPassword());
+        verify(userRepository).save(newUserInfo);
     }
 
     private User buildUser() {
