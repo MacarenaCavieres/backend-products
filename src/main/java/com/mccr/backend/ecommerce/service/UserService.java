@@ -108,19 +108,6 @@ public class UserService {
 				user.getUpdatedAt());
 	}
 
-	/*
-	 * Tests:
-	 * Debe lanzar ResponseStatusException cuando el usuario no existe.
-	 * Debe lanzar ResponseStatusException cuando el nuevo email ya está registrado.
-	 * Debe actualizar correctamente el nombre y apellido.
-	 * Debe actualizar el email cuando el nuevo email no está registrado.
-	 * No debe consultar si el email cambió cuando el email es el mismo.
-	 * Debe hashear la nueva contraseña cuando esta cambia.
-	 * No debe modificar la contraseña cuando viene vacía o nula.
-	 * Debe actualizar la fecha updatedAt.
-	 * Debe guardar correctamente el usuario actualizado.
-	 * Debe devolver un UserResponse con los datos actualizados.
-	 */
 	@SuppressWarnings("null")
 	@PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.name")
 	@Transactional
@@ -158,12 +145,6 @@ public class UserService {
 
 	}
 
-	/*
-	 * Tests:
-	 * Debe eliminar el usuario cuando existe.
-	 * Debe lanzar ResponseStatusException cuando el usuario no existe.
-	 * Debe llamar a deleteById().
-	 */
 	@PreAuthorize("hasRole('ADMIN')")
 	@Transactional
 	public void removeUser(Long id) {
@@ -175,17 +156,6 @@ public class UserService {
 
 	}
 
-	/*
-	 * Tests:
-	 * Debe lanzar ResponseStatusException cuando el usuario no existe.
-	 * Debe lanzar ResponseStatusException cuando el rol ROLE_SUPERVISOR no existe.
-	 * Debe lanzar ResponseStatusException cuando el usuario ya tiene asignado el
-	 * rol.
-	 * Debe agregar el rol ROLE_SUPERVISOR al usuario.
-	 * Debe actualizar updatedAt.
-	 * Debe guardar el usuario actualizado.
-	 * Debe devolver un UserResponse con el nuevo rol asignado.
-	 */
 	@SuppressWarnings("null")
 	@Transactional
 	public UserResponse addSupervisorRole(Long id) {
@@ -212,14 +182,6 @@ public class UserService {
 
 	}
 
-	/*
-	 * Tests:
-	 * Debe obtener el id del usuario a partir del token.
-	 * Debe devolver el usuario cuando el token corresponde a un usuario existente.
-	 * Debe lanzar ResponseStatusException cuando el usuario obtenido desde el token
-	 * no existe.
-	 * Debe devolver correctamente el UserResponse.
-	 */
 	@SuppressWarnings("null")
 	@Transactional
 	public UserResponse getUserByToken(String token) {

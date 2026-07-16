@@ -24,10 +24,12 @@ import org.springframework.web.server.ResponseStatusException;
 import com.mccr.backend.ecommerce.config.HashEncoder;
 import com.mccr.backend.ecommerce.dto.LoginRequest;
 import com.mccr.backend.ecommerce.dto.LoginResponse;
+import com.mccr.backend.ecommerce.dto.ResetPasswordRequest;
 import com.mccr.backend.ecommerce.dto.UserResponse;
 import com.mccr.backend.ecommerce.model.Role;
 import com.mccr.backend.ecommerce.model.User;
 import com.mccr.backend.ecommerce.model.enums.RoleList;
+import com.mccr.backend.ecommerce.repository.PasswordResetRepository;
 import com.mccr.backend.ecommerce.repository.RoleRepository;
 import com.mccr.backend.ecommerce.repository.UserRepository;
 
@@ -44,6 +46,9 @@ public class UserServiceTest {
 
     @Mock
     private JwtService jwtService;
+
+    @Mock
+    private PasswordResetRepository passwordResetRepository;
 
     @InjectMocks
     private UserService userService;
@@ -338,19 +343,6 @@ public class UserServiceTest {
         verify(userRepository).findById(1L);
     }
 
-    /*
-     * Tests:
-     * Debe lanzar ResponseStatusException cuando el nuevo email ya está registrado.
-     * Debe actualizar correctamente el nombre y apellido.
-     * Debe actualizar el email cuando el nuevo email no está registrado.
-     * No debe consultar si el email cambió cuando el email es el mismo.
-     * Debe hashear la nueva contraseña cuando esta cambia.
-     * No debe modificar la contraseña cuando viene vacía o nula.
-     * Debe actualizar la fecha updatedAt.
-     * Debe guardar correctamente el usuario actualizado.
-     * Debe devolver un UserResponse con los datos actualizados.
-     */
-
     @Test
     @DisplayName("It should throw a ResponseStatusException when the new email is already registered")
     void shouldThrowExceptionWhenUserEmailIsRegistered() {
@@ -498,6 +490,289 @@ public class UserServiceTest {
         verify(hashEncoder, never()).encode("");
         verify(userRepository).save(user);
     }
+
+    @Test
+    @DisplayName("It should update the updatedAt date field")
+    void shouldUpdatedUpdatedAtField() {
+        User user = buildUser();
+        user.setId(1L);
+        user.setRoles(List.of(buildRole()));
+
+        User newUserInfo = buildUser();
+        newUserInfo.setName("Lexa");
+        newUserInfo.setRoles(List.of(buildRole()));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(hashEncoder.matches("12345678", user.getPassword())).thenReturn(true);
+        when(userRepository.save(user)).thenReturn(user);
+
+        UserResponse response = userService.updateUser(1L, newUserInfo);
+
+        assertNotEquals(null, response.updatedAt());
+
+        verify(userRepository).findById(1L);
+        verify(hashEncoder).matches("12345678", user.getPassword());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("It should save the user correctly")
+    void shouldSaveTheUserCorrectlyAfterUpdateIt() {
+        User user = buildUser();
+        user.setId(1L);
+        user.setRoles(List.of(buildRole()));
+
+        User newUserInfo = buildUser();
+        newUserInfo.setName("Lexa");
+        newUserInfo.setRoles(List.of(buildRole()));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(hashEncoder.matches("12345678", user.getPassword())).thenReturn(true);
+        when(userRepository.save(user)).thenReturn(user);
+
+        UserResponse response = userService.updateUser(1L, newUserInfo);
+
+        assertEquals("Lexa", response.name());
+        assertEquals("Trikru", response.lastname());
+        assertEquals("lexa@mail.com", response.email());
+
+        verify(userRepository).findById(1L);
+        verify(hashEncoder).matches("12345678", user.getPassword());
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("It should delete the user if it exists")
+    void shouldDeleteUserWhenExists() {
+        User user = buildUser();
+        user.setId(1L);
+        user.setRoles(List.of(buildRole()));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+
+        userService.removeUser(1L);
+
+        verify(userRepository).deleteById(1L);
+    }
+
+    @Test
+    @DisplayName("It should throw a ResponseStatusException when the user does not exist in removeUser")
+    void shouldThrowExceptionWhenUserDoesNotExistInRemoveUser() {
+
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> userService.removeUser(1L));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Usuario no encontrado", ex.getReason());
+
+        verify(userRepository).findById(1L);
+    }
+
+    @Test
+    @DisplayName("It should throw a ResponseStatusException when user does not exist in assignRole")
+    void shouldThrowExceptionWhenUserDoesNotExistInAssignSupervisorRole() {
+
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> userService.addSupervisorRole(1L));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Usuario no encontrado", ex.getReason());
+
+        verify(userRepository).findById(1L);
+    }
+
+    @Test
+    @DisplayName("It should throw a ResponseStatusException when the ROLE_SUPERVISOR role does not exist")
+    void shouldThrowExceptionWhenRoleSupervisorDoesNotExist() {
+        User user = buildUser();
+        user.setId(1L);
+        user.setRoles(List.of(buildRole()));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(roleRepository.findByRole(RoleList.ROLE_SUPERVISOR)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> userService.addSupervisorRole(1L));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("El rol ROLE_SUPERVISOR no está creado en la base de datos", ex.getReason());
+
+        verify(userRepository).findById(1L);
+        verify(roleRepository).findByRole(RoleList.ROLE_SUPERVISOR);
+    }
+
+    @Test
+    @DisplayName("It should throw a ResponseStatusException when the user already has the role assigned")
+    void shouldThrowExceptionWhenRoleSupervisorIsAlreadyAssignedToTheUser() {
+        Role supervisorRole = new Role();
+        supervisorRole.setId(2L);
+        supervisorRole.setRole(RoleList.ROLE_SUPERVISOR);
+        User user = buildUser();
+        user.setId(1L);
+        user.setRoles(List.of(buildRole(), supervisorRole));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(roleRepository.findByRole(RoleList.ROLE_SUPERVISOR)).thenReturn(Optional.of(supervisorRole));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> userService.addSupervisorRole(1L));
+
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        assertEquals("Usuario con ese rol ya asignado", ex.getReason());
+
+        verify(userRepository).findById(1L);
+        verify(roleRepository).findByRole(RoleList.ROLE_SUPERVISOR);
+    }
+
+    @Test
+    @DisplayName("It should add the ROLE_SUPERVISOR role to the user")
+    void shouldAddSupervisorRoleToTheUser() {
+        Role supervisorRole = new Role();
+        supervisorRole.setId(2L);
+        supervisorRole.setRole(RoleList.ROLE_SUPERVISOR);
+
+        User user = buildUser();
+        user.setId(1L);
+
+        List<Role> roles = new ArrayList<>();
+        roles.add(buildRole());
+        user.setRoles(roles);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(roleRepository.findByRole(RoleList.ROLE_SUPERVISOR)).thenReturn(Optional.of(supervisorRole));
+        when(userRepository.save(user)).thenReturn(user);
+
+        UserResponse response = userService.addSupervisorRole(1L);
+
+        List<RoleList> rolesList = List.of(
+                RoleList.ROLE_USER,
+                RoleList.ROLE_SUPERVISOR);
+
+        assertEquals(rolesList, response.roles());
+
+        verify(userRepository).findById(1L);
+        verify(roleRepository).findByRole(RoleList.ROLE_SUPERVISOR);
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("It should update updatedAt")
+    void shouldUpdatedUpdatedAtFieldInAssingSupervisorRole() {
+        Role supervisorRole = new Role();
+        supervisorRole.setId(2L);
+        supervisorRole.setRole(RoleList.ROLE_SUPERVISOR);
+
+        User user = buildUser();
+        user.setId(1L);
+
+        List<Role> roles = new ArrayList<>();
+        roles.add(buildRole());
+        user.setRoles(roles);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(roleRepository.findByRole(RoleList.ROLE_SUPERVISOR)).thenReturn(Optional.of(supervisorRole));
+        when(userRepository.save(user)).thenReturn(user);
+
+        UserResponse response = userService.addSupervisorRole(1L);
+
+        assertNotEquals(null, response.updatedAt());
+
+        verify(userRepository).findById(1L);
+        verify(roleRepository).findByRole(RoleList.ROLE_SUPERVISOR);
+        verify(userRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("It should obtain the user ID from the token")
+    void shouldObtainTheUserIdFromToken() {
+        User u = buildUser();
+        u.setId(1L);
+        u.setRoles(List.of(buildRole()));
+
+        when(jwtService.getUserIdFromToken("sdkjfgdsiufg234")).thenReturn("1");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(u));
+
+        UserResponse response = userService.getUserByToken("sdkjfgdsiufg234");
+
+        assertEquals("Alexandra", response.name());
+        assertEquals("Trikru", response.lastname());
+
+        verify(jwtService).getUserIdFromToken("sdkjfgdsiufg234");
+        verify(userRepository).findById(1L);
+
+    }
+
+    @Test
+    @DisplayName("It should throw a ResponseStatusException when the user obtained from the token does not exist")
+    void shouldThrowExceptionWhenUserDoesNotExistInGetUserByToken() {
+        User u = buildUser();
+        u.setId(1L);
+        u.setRoles(List.of(buildRole()));
+
+        when(jwtService.getUserIdFromToken("sdkjfgdsiufg234")).thenReturn("1");
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> userService.getUserByToken("sdkjfgdsiufg234"));
+
+        assertEquals("Usuario no encontrado", ex.getReason());
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+
+        verify(jwtService).getUserIdFromToken("sdkjfgdsiufg234");
+        verify(userRepository).findById(1L);
+
+    }
+
+    /*
+     * Tests:
+     * Debe eliminar los tokens anteriores del usuario.
+     * Debe generar un nuevo token de recuperación.
+     * Debe crear un PasswordResetToken con fecha de expiración.
+     * Debe guardar el nuevo token en la base de datos.
+     * Debe enviar el correo electrónico de recuperación.
+     * Debe utilizar los roles del usuario para generar el token.
+     */
+    @Test
+    @DisplayName("It should throw a ResponseStatusException when the user does not exist by email")
+    void shouldThrowExceptionWhenUserDoesNotExistInRequestPasswordReset() {
+        ResetPasswordRequest email = new ResetPasswordRequest("lexa@email.com");
+
+        when(userRepository.findByEmail("lexa@email.com")).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> userService.requestPasswordReset(email));
+
+        assertEquals("Usuario no encontrado", ex.getReason());
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+
+        verify(userRepository).findByEmail("lexa@email.com");
+
+    }
+
+    // @Test
+    // @DisplayName("It should delete the user's previous tokens")
+    // void shouldDeleteUsersPreviousTokens1() {
+    // User u = buildUser();
+    // u.setId(1L);
+    // u.setRoles(List.of(buildRole()));
+    // ResetPasswordRequest email = new ResetPasswordRequest("lexa@email.com");
+
+    // when(userRepository.findByEmail("lexa@email.com")).thenReturn(Optional.empty());
+    // when(jwtService.generateResetPasswordToken("1",
+    // u.getRoles())).thenReturn("siufh9w8yr237894bfnjesdnf");
+
+    // ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+    // () -> userService.requestPasswordReset(email));
+
+    // assertEquals("Usuario no encontrado", ex.getReason());
+    // assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+
+    // verify(userRepository).findByEmail("lexa@email.com");
+
+    // }
 
     private User buildUser() {
         User user = new User();
