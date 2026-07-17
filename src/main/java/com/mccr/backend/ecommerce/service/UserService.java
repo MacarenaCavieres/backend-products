@@ -197,16 +197,6 @@ public class UserService {
 
 	}
 
-	/*
-	 * Tests:
-	 * Debe lanzar ResponseStatusException cuando el usuario no existe.
-	 * Debe eliminar los tokens anteriores del usuario.
-	 * Debe generar un nuevo token de recuperación.
-	 * Debe crear un PasswordResetToken con fecha de expiración.
-	 * Debe guardar el nuevo token en la base de datos.
-	 * Debe enviar el correo electrónico de recuperación.
-	 * Debe utilizar los roles del usuario para generar el token.
-	 */
 	@Transactional
 	public void requestPasswordReset(ResetPasswordRequest resetPasswordRequest) {
 		User user = userRepository.findByEmail(resetPasswordRequest.email())
@@ -217,7 +207,7 @@ public class UserService {
 
 		List<Role> rolesList = user.getRoles();
 
-		String newResetPasswordToken = jwtService.generateResetPasswordToken(resetPasswordRequest.email(),
+		String newResetPasswordToken = jwtService.generateResetPasswordToken(user.getId().toString(),
 				rolesList);
 		Long expiration = jwtService.expirationTokenResetTime;
 		Instant expiresAt = Instant.now().plusMillis(expiration);

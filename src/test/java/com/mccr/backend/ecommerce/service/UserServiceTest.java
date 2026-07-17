@@ -2,11 +2,14 @@ package com.mccr.backend.ecommerce.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -15,6 +18,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -24,8 +28,10 @@ import org.springframework.web.server.ResponseStatusException;
 import com.mccr.backend.ecommerce.config.HashEncoder;
 import com.mccr.backend.ecommerce.dto.LoginRequest;
 import com.mccr.backend.ecommerce.dto.LoginResponse;
+import com.mccr.backend.ecommerce.dto.RecoveryPassword;
 import com.mccr.backend.ecommerce.dto.ResetPasswordRequest;
 import com.mccr.backend.ecommerce.dto.UserResponse;
+import com.mccr.backend.ecommerce.model.PasswordResetToken;
 import com.mccr.backend.ecommerce.model.Role;
 import com.mccr.backend.ecommerce.model.User;
 import com.mccr.backend.ecommerce.model.enums.RoleList;
@@ -49,6 +55,9 @@ public class UserServiceTest {
 
     @Mock
     private PasswordResetRepository passwordResetRepository;
+
+    @Mock
+    private EmailService emailService;
 
     @InjectMocks
     private UserService userService;
@@ -726,15 +735,6 @@ public class UserServiceTest {
 
     }
 
-    /*
-     * Tests:
-     * Debe eliminar los tokens anteriores del usuario.
-     * Debe generar un nuevo token de recuperación.
-     * Debe crear un PasswordResetToken con fecha de expiración.
-     * Debe guardar el nuevo token en la base de datos.
-     * Debe enviar el correo electrónico de recuperación.
-     * Debe utilizar los roles del usuario para generar el token.
-     */
     @Test
     @DisplayName("It should throw a ResponseStatusException when the user does not exist by email")
     void shouldThrowExceptionWhenUserDoesNotExistInRequestPasswordReset() {
@@ -752,27 +752,111 @@ public class UserServiceTest {
 
     }
 
-    // @Test
-    // @DisplayName("It should delete the user's previous tokens")
-    // void shouldDeleteUsersPreviousTokens1() {
-    // User u = buildUser();
-    // u.setId(1L);
-    // u.setRoles(List.of(buildRole()));
-    // ResetPasswordRequest email = new ResetPasswordRequest("lexa@email.com");
+    @Test
+    @DisplayName("It should delete the user's previous tokens and store the token in the db")
+    void shouldDeleteUsersPreviousTokensAndStoreIt() {
+        User u = buildUser();
+        u.setId(1L);
+        u.setRoles(List.of(buildRole()));
 
-    // when(userRepository.findByEmail("lexa@email.com")).thenReturn(Optional.empty());
-    // when(jwtService.generateResetPasswordToken("1",
-    // u.getRoles())).thenReturn("siufh9w8yr237894bfnjesdnf");
+        ResetPasswordRequest email = new ResetPasswordRequest("lexa@mail.com");
 
-    // ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-    // () -> userService.requestPasswordReset(email));
+        when(userRepository.findByEmail("lexa@mail.com")).thenReturn(Optional.of(u));
+        when(jwtService.generateResetPasswordToken("1", u.getRoles()))
+                .thenReturn("siufh9w8yr237894bfnjesdnf");
 
-    // assertEquals("Usuario no encontrado", ex.getReason());
-    // assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        jwtService.expirationTokenResetTime = 900_000L;
 
-    // verify(userRepository).findByEmail("lexa@email.com");
+        userService.requestPasswordReset(email);
 
-    // }
+        ArgumentCaptor<PasswordResetToken> captor = ArgumentCaptor.forClass(PasswordResetToken.class);
+
+        verify(userRepository).findByEmail("lexa@mail.com");
+        verify(passwordResetRepository).deleteByUserId(1L);
+        verify(jwtService).generateResetPasswordToken("1", u.getRoles());
+        verify(passwordResetRepository).save(captor.capture());
+        verify(emailService).sendPasswordResetEmail("lexa@mail.com", "siufh9w8yr237894bfnjesdnf");
+
+        PasswordResetToken savedToken = captor.getValue();
+
+        assertEquals("siufh9w8yr237894bfnjesdnf", savedToken.getToken());
+        assertEquals(1L, savedToken.getUserId());
+        assertNotNull(savedToken.getExpiresAt());
+        assertTrue(savedToken.getExpiresAt().isAfter(Instant.now()));
+
+    }
+
+    /*
+     * Tests:
+     * Debe lanzar ResponseStatusException cuando el JWT está expirado o es
+     * inválido.
+     * Debe lanzar ResponseStatusException cuando el token no existe.
+     * Debe lanzar ResponseStatusException cuando el token ya fue utilizado.
+     * Debe lanzar ResponseStatusException cuando el usuario asociado al token no
+     * existe.
+     * Debe actualizar la contraseña del usuario.
+     * Debe guardar el usuario con la nueva contraseña.
+     * Debe marcar el token como utilizado.
+     * Debe guardar el token actualizado.
+     * Debe devolver el mensaje "Contraseña restablecida".
+     */
+    @Test
+    @DisplayName("It should throw a ResponseStatusException when the JWT is expired or invalid")
+    void shouldThrowExceptionWhenJWTIsInvalid() {
+
+        RecoveryPassword info = new RecoveryPassword("123456789", "siduf89w34hfgnwe");
+        when(jwtService.validateAcessToken(info.token())).thenReturn(false);
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> userService.recoveryPassword(info));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("Token expirado, solicite otro", ex.getReason());
+
+        verify(jwtService).validateAcessToken(info.token());
+
+    }
+
+    @Test
+    @DisplayName("It should throw a ResponseStatusException when the token does not exist")
+    void shouldThrowExceptionWhenTokenDoesNotExist() {
+
+        RecoveryPassword info = new RecoveryPassword("123456789", "siduf89w34hfgnwe");
+        when(jwtService.validateAcessToken(info.token())).thenReturn(true);
+        when(passwordResetRepository.findByToken(info.token())).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> userService.recoveryPassword(info));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("Token ya usado, solicite otro", ex.getReason());
+
+        verify(jwtService).validateAcessToken(info.token());
+        verify(passwordResetRepository).findByToken(info.token());
+
+    }
+
+    @Test
+    @DisplayName("It should throw a ResponseStatusException when the token has already been used")
+    void shouldThrowExceptionWhenTokenHasAlreadyUsed() {
+
+        PasswordResetToken optionalToken = new PasswordResetToken();
+        optionalToken.setUsed(true);
+
+        RecoveryPassword info = new RecoveryPassword("123456789", "siduf89w34hfgnwe");
+        when(jwtService.validateAcessToken(info.token())).thenReturn(true);
+        when(passwordResetRepository.findByToken(info.token())).thenReturn(Optional.of(optionalToken));
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> userService.recoveryPassword(info));
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("Token ya usado, solicite otro", ex.getReason());
+
+        verify(jwtService).validateAcessToken(info.token());
+        verify(passwordResetRepository).findByToken(info.token());
+
+    }
 
     private User buildUser() {
         User user = new User();
