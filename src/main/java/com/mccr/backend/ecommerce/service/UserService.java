@@ -220,20 +220,6 @@ public class UserService {
 
 	}
 
-	/*
-	 * Tests:
-	 * Debe lanzar ResponseStatusException cuando el JWT está expirado o es
-	 * inválido.
-	 * Debe lanzar ResponseStatusException cuando el token no existe.
-	 * Debe lanzar ResponseStatusException cuando el token ya fue utilizado.
-	 * Debe lanzar ResponseStatusException cuando el usuario asociado al token no
-	 * existe.
-	 * Debe actualizar la contraseña del usuario.
-	 * Debe guardar el usuario con la nueva contraseña.
-	 * Debe marcar el token como utilizado.
-	 * Debe guardar el token actualizado.
-	 * Debe devolver el mensaje "Contraseña restablecida".
-	 */
 	@Transactional
 	public String recoveryPassword(RecoveryPassword recoveryInfo) {
 

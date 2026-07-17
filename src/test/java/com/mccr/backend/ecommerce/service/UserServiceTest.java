@@ -786,20 +786,6 @@ public class UserServiceTest {
 
     }
 
-    /*
-     * Tests:
-     * Debe lanzar ResponseStatusException cuando el JWT está expirado o es
-     * inválido.
-     * Debe lanzar ResponseStatusException cuando el token no existe.
-     * Debe lanzar ResponseStatusException cuando el token ya fue utilizado.
-     * Debe lanzar ResponseStatusException cuando el usuario asociado al token no
-     * existe.
-     * Debe actualizar la contraseña del usuario.
-     * Debe guardar el usuario con la nueva contraseña.
-     * Debe marcar el token como utilizado.
-     * Debe guardar el token actualizado.
-     * Debe devolver el mensaje "Contraseña restablecida".
-     */
     @Test
     @DisplayName("It should throw a ResponseStatusException when the JWT is expired or invalid")
     void shouldThrowExceptionWhenJWTIsInvalid() {
@@ -855,6 +841,63 @@ public class UserServiceTest {
 
         verify(jwtService).validateAcessToken(info.token());
         verify(passwordResetRepository).findByToken(info.token());
+
+    }
+
+    @Test
+    @DisplayName("It should throw a ResponseStatusException when the user associated with the token does not exist")
+    void shouldThrowExceptionWhenUserAssociatedWithTokenDoesNotExist() {
+
+        PasswordResetToken optionalToken = new PasswordResetToken();
+        optionalToken.setUsed(false);
+        optionalToken.setId(1L);
+        optionalToken.setUserId(1L);
+
+        RecoveryPassword info = new RecoveryPassword("123456789", "siduf89w34hfgnwe");
+        when(jwtService.validateAcessToken(info.token())).thenReturn(true);
+        when(passwordResetRepository.findByToken(info.token())).thenReturn(Optional.of(optionalToken));
+        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> userService.recoveryPassword(info));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Usuario asociado a ese token no encontrado", ex.getReason());
+
+        verify(jwtService).validateAcessToken(info.token());
+        verify(passwordResetRepository).findByToken(info.token());
+        verify(userRepository).findById(1L);
+
+    }
+
+    @Test
+    @DisplayName("It should update the user's password and save the user")
+    void shouldUpdateUsersPassAndSaveIt() {
+        User u = buildUser();
+        u.setId(1L);
+
+        PasswordResetToken optionalToken = new PasswordResetToken();
+        optionalToken.setUsed(false);
+        optionalToken.setId(1L);
+        optionalToken.setUserId(1L);
+
+        RecoveryPassword info = new RecoveryPassword("123456789", "siduf89w34hfgnwe");
+        when(jwtService.validateAcessToken(info.token())).thenReturn(true);
+        when(passwordResetRepository.findByToken(info.token())).thenReturn(Optional.of(optionalToken));
+        when(userRepository.findById(1L)).thenReturn(Optional.of(u));
+        when(hashEncoder.encode(info.password())).thenReturn("48rthy4unefw489thjufr");
+
+        String message = userService.recoveryPassword(info);
+
+        assertEquals("48rthy4unefw489thjufr", u.getPassword());
+        assertTrue(optionalToken.isUsed());
+        assertEquals("Contraseña restablecida", message);
+
+        verify(jwtService).validateAcessToken(info.token());
+        verify(passwordResetRepository).findByToken(info.token());
+        verify(userRepository).findById(1L);
+        verify(hashEncoder).encode(info.password());
+        verify(userRepository).save(u);
 
     }
 
