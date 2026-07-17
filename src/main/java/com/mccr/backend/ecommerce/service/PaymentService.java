@@ -36,11 +36,6 @@ public class PaymentService {
 
     /*
      * Tests
-     * Debe lanzar ResponseStatusException cuando el usuario obtenido desde el token
-     * no existe.
-     * Debe lanzar ResponseStatusException cuando alguno de los productos no existe.
-     * Debe lanzar ResponseStatusException cuando el stock de un producto es
-     * insuficiente.
      * Debe descontar correctamente el stock de los productos comprados.
      * Debe crear un OrderItem por cada producto del carrito.
      * Debe asociar cada OrderItem al Payment.
